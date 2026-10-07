@@ -21,7 +21,8 @@ const revealTimers = new Map<Element, ReturnType<typeof setTimeout>>();
  * Inject (or update) the global CSS that drives blur transforms.
  */
 export function injectStyles(intensity: number): void {
-  const blur = Math.max(1, Math.min(intensity, 40));
+  // Clamp to the same range exposed by the UI sliders (2–20px)
+  const blur = Math.max(2, Math.min(intensity, 20));
   const existing = document.getElementById(STYLE_ID);
   const css = `
     [${PROTECTED_ATTR}] {

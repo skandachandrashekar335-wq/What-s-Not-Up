@@ -6,39 +6,41 @@
  * We use a combination of stable data attributes, ARIA roles and structural
  * patterns. Multiple fallback selectors are provided where possible.
  *
+ * Design principles:
+ * - Prefer stable data-testid attributes over auto-generated class names
+ * - Use the most specific selector available to avoid false matches
+ * - Never use overly broad selectors like [data-id] or bare `img`
+ * - Unknown/unmatched elements are silently ignored by the engine
+ *
  * NOTE: These selectors were accurate at time of writing (Oct 2024).
  * WhatsApp Web updates frequently; expect some selectors to drift.
- * Unknown elements are silently ignored.
+ * Update this file first when a protection stops working after a WhatsApp update.
+ * Add new selectors at the TOP of each array; keep old ones as fallbacks.
  */
 
 export const SELECTORS = {
   /**
-   * Individual chat message bubbles in the conversation pane.
-   * WhatsApp uses role="row" on message containers or data-id attributes.
-   */
-  messageBubble: [
-    '[data-id]',                          // primary: stable data attribute
-    '.message-in',                        // fallback class (may change)
-    '.message-out',
-    '[data-testid="msg-container"]',      // testid (occasionally present)
-  ],
-
-  /**
    * The text content inside a message bubble.
+   * Targeted at the text span, not the whole bubble container, to avoid
+   * accidentally blurring UI chrome (buttons, timestamps, reactions).
    */
   messageText: [
     'span.selectable-text',
-    '[data-testid="msg-container"] span',
+    '[data-testid="msg-container"] span.copyable-text',
     '.copyable-text',
   ],
 
   /**
    * Contact and group names in the chat list.
+   * span[title][dir] matches the name spans WhatsApp renders with a title
+   * attribute (the full name) and a dir attribute (text direction).
+   * Scoped to the chat list pane by the DOM processor to avoid hitting
+   * the header name twice.
    */
   chatListName: [
     '[data-testid="cell-frame-title"]',
-    'span[title][dir]',
-    '._ao3e',                             // structural fallback
+    '#pane-side span[title][dir]',
+    '#pane-side ._ao3e',                  // structural fallback (may change)
   ],
 
   /**
@@ -47,16 +49,17 @@ export const SELECTORS = {
   chatListPreview: [
     '[data-testid="last-msg"]',
     '[data-testid="cell-frame-secondary"]',
-    '._ao3f',
   ],
 
   /**
    * Profile photos (avatar thumbnails).
+   * Only matches known WhatsApp avatar patterns; avoids matching arbitrary
+   * images elsewhere on the page.
    */
   profilePhoto: [
     '[data-testid="default-user"]',
     '[data-testid="avatar"]',
-    'img[src*="pps.whatsapp.net"]',       // CDN URL pattern
+    'img[src*="pps.whatsapp.net"]',       // CDN profile photo URL
     'img[src*="static.whatsapp.net"]',
     'img[alt="Profile photo"]',
     '[data-testid="chatlist-avatar"] img',
@@ -65,20 +68,24 @@ export const SELECTORS = {
 
   /**
    * Images in conversations (not profile photos).
+   * Note: blob: URLs cannot be matched with a CSS attribute selector because
+   * querySelectorAll does not support protocol-relative patterns. We match
+   * by testid and structural location instead.
    */
   mediaImage: [
     '[data-testid="media-url-provider"] img',
-    'img[src*="blob:"]',                  // blob-loaded images
     '[data-testid="image-thumb"]',
+    '[data-testid="media-image"]',
   ],
 
   /**
    * Video thumbnails and players.
+   * Scoped to known WhatsApp video containers to avoid matching unrelated videos.
    */
   mediaVideo: [
-    'video',
     '[data-testid="video-thumb"]',
     '[data-testid="media-video"]',
+    '[data-testid="media-url-provider"] video',
   ],
 
   /**
@@ -87,7 +94,6 @@ export const SELECTORS = {
   mediaGifSticker: [
     '[data-testid="gif"]',
     '[data-testid="sticker"]',
-    'img[src*=".gif"]',
     '[data-animated="true"]',
   ],
 
@@ -97,7 +103,6 @@ export const SELECTORS = {
   documentPreview: [
     '[data-testid="document-thumb"]',
     '[data-testid="media-document"]',
-    '.document-thumb',
   ],
 
   /**
@@ -105,7 +110,7 @@ export const SELECTORS = {
    */
   linkPreview: [
     '[data-testid="link-preview"]',
-    '.link-preview',
+    '[data-testid="link-preview-thumbnail"]',
   ],
 
   /**
@@ -113,7 +118,6 @@ export const SELECTORS = {
    */
   chatHeader: [
     '[data-testid="conversation-header"]',
-    'header[data-testid]',
   ],
 
   chatHeaderName: [
@@ -123,33 +127,18 @@ export const SELECTORS = {
 
   /**
    * Online / last-seen / typing status indicators.
+   * Note: last-seen and online status share the same DOM area in WhatsApp.
+   * Both are hidden when online status hiding is enabled.
+   * They cannot be distinguished independently with current selectors.
    */
   onlineStatus: [
     '[data-testid="status"]',
     'span[data-testid="last-seen"]',
-    '[aria-label*="online"]',
-    '._ao3e + ._ao3f',
   ],
 
   typingIndicator: [
     '[data-testid="typing"]',
     '[data-testid="conversation-info-header-status"]',
-  ],
-
-  /**
-   * The overall chat pane — used to determine context.
-   */
-  chatPane: [
-    '[data-testid="conversation-panel-wrapper"]',
-    '#main',
-  ],
-
-  /**
-   * The chat/contact list in the left sidebar.
-   */
-  chatList: [
-    '[data-testid="chat-list"]',
-    '#pane-side',
   ],
 } as const;
 

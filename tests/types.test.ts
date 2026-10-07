@@ -34,8 +34,8 @@ describe('DEFAULT_SETTINGS', () => {
   });
 
   it('has a sensible blur intensity', () => {
-    expect(DEFAULT_SETTINGS.blurIntensity).toBeGreaterThan(0);
-    expect(DEFAULT_SETTINGS.blurIntensity).toBeLessThanOrEqual(40);
+    expect(DEFAULT_SETTINGS.blurIntensity).toBeGreaterThanOrEqual(2);
+    expect(DEFAULT_SETTINGS.blurIntensity).toBeLessThanOrEqual(20);
   });
 
   it('has a sensible temporary reveal duration', () => {

@@ -21,8 +21,7 @@
     "default_title": "What's Not Up"
   },
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {
@@ -35,9 +34,11 @@
   "options_page": "options.html",
   "permissions": [
     "storage",
-    "alarms"
+    "tabs"
   ],
-  "host_permissions": [],
+  "host_permissions": [
+    "https://web.whatsapp.com/*"
+  ],
   "web_accessible_resources": [
     {
       "resources": ["icons/*"],

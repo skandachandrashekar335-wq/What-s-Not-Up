@@ -26,7 +26,7 @@ export interface PrivacySettings {
   revealMode: RevealMode;
   temporaryRevealDurationMs: number; // milliseconds
 
-  // Blur intensity 0–100
+  // Blur intensity in pixels (2–20). UI sliders are clamped to this range.
   blurIntensity: number;
 
   // Quick privacy / focus behaviour

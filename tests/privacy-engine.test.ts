@@ -58,16 +58,16 @@ describe('injectStyles', () => {
     expect(css).toContain('blur(10px)');
   });
 
-  it('clamps blur below 1 to 1', () => {
+  it('clamps blur below 2 to 2', () => {
     injectStyles(0);
     const css = document.getElementById('wnu-privacy-styles')?.textContent ?? '';
-    expect(css).toContain('blur(1px)');
+    expect(css).toContain('blur(2px)');
   });
 
-  it('clamps blur above 40 to 40', () => {
+  it('clamps blur above 20 to 20', () => {
     injectStyles(999);
     const css = document.getElementById('wnu-privacy-styles')?.textContent ?? '';
-    expect(css).toContain('blur(40px)');
+    expect(css).toContain('blur(20px)');
   });
 
   it('updates existing style element rather than creating another', () => {

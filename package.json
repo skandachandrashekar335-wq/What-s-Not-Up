@@ -4,15 +4,19 @@
   "description": "A privacy layer for WhatsApp Web",
   "private": true,
   "scripts": {
+    "icons:generate": "node scripts/generate-icons.mjs",
+    "prebuild": "node scripts/generate-icons.mjs",
     "dev": "webpack --watch --mode development",
     "build": "webpack --mode production",
     "build:dev": "webpack --mode development",
+    "postbuild": "node scripts/validate-extension.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "validate:extension": "node scripts/validate-extension.mjs",
     "clean": "rimraf dist"
   },
   "devDependencies": {

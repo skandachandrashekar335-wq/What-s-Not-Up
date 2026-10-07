@@ -1,12 +1,14 @@
 # Privacy Policy — What's Not Up
 
-**What's Not Up is a local privacy tool. It does not collect, transmit, or store any message content.**
+**What's Not Up is a local privacy tool. It does not collect, store, or transmit any message content. Privacy transformations are applied locally in the browser to content already rendered by WhatsApp Web.**
 
 ---
 
 ## What the extension does
 
-What's Not Up applies CSS-based visual blur and hide effects to the WhatsApp Web page you are already viewing. It is a filter on your screen, not an interceptor of your data.
+What's Not Up applies CSS-based visual blur and hide effects to the WhatsApp Web page you are already viewing. To do this, it inspects DOM elements that WhatsApp Web has already rendered in your browser in order to identify which elements to apply transformations to. It does not read, store, or transmit the content of those elements — it only applies visual CSS effects to them locally.
+
+The extension is a filter on your screen, not an interceptor of your data.
 
 ## Data collected
 
