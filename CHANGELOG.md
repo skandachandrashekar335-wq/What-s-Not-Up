@@ -28,6 +28,7 @@ Initial stable release of the local privacy layer for WhatsApp Web and supported
 
 **Architecture**
 - Manifest V3 extension with TypeScript throughout and React for popup, options and onboarding
+- Licensed under the Apache License 2.0 (`LICENSE`, `"license": "Apache-2.0"`)
 - Site adapter architecture (`src/content/sites/`) — the privacy engine and DOM processor are site-agnostic, and all site knowledge lives in per-site adapters
 - Layered, rename-safe WhatsApp detection: exact selectors → attribute hints → structural context → shape and media characteristics, with hard exclusions applied before any positive signal
 - Pure media classification into `image | video | GIF | sticker`, keeping the media toggles mutually exclusive by construction
