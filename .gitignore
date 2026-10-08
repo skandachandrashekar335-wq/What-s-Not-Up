@@ -1,0 +1,13 @@
+node_modules/
+dist/
+release/
+coverage/
+*.local
+.DS_Store
+__MACOSX/
+*.env
+.env.*
+*.zip
+*.log
+npm-debug.log*
+.cache/

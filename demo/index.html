@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>What's Not Up — Local Demo</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #111b21;
+      color: #e9edef;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .notice {
+      background: #2a3942;
+      color: #8696a0;
+      font-size: 12px;
+      padding: 8px 16px;
+      text-align: center;
+    }
+    .notice strong { color: #e9edef; }
+
+    .layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    #pane-side {
+      width: 380px;
+      border-right: 1px solid #2a3942;
+      overflow-y: auto;
+      background: #111b21;
+    }
+
+    .sidebar-header {
+      padding: 10px 16px;
+      font-weight: 600;
+      font-size: 19px;
+      color: #e9edef;
+      border-bottom: 1px solid #2a3942;
+    }
+
+    .chat-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid #1e2a30;
+    }
+    .chat-item:hover { background: #202c33; }
+
+    .avatar {
+      width: 49px;
+      height: 49px;
+      border-radius: 50%;
+      background: #2a3942;
+      flex-shrink: 0;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+    }
+
+    /* This img is matched by img[alt="Profile photo"] */
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .chat-info { flex: 1; overflow: hidden; }
+
+    /* Matched by span[title][dir] */
+    .chat-name { font-size: 17px; color: #e9edef; }
+    .chat-name-span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Matched by [data-testid="last-msg"] */
+    .chat-preview { font-size: 14px; color: #8696a0; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* ── Main pane ── */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #0b141a;
+    }
+
+    /* Matched by [data-testid="conversation-header"] */
+    header[data-testid="conversation-header"] {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      background: #202c33;
+      border-bottom: 1px solid #2a3942;
+    }
+
+    /* Matched by [data-testid="conversation-info-header-chat-title"] */
+    .header-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #e9edef;
+    }
+
+    .header-meta { font-size: 13px; color: #8696a0; }
+
+    /* Matched by [data-testid="status"] */
+    [data-testid="status"] { font-size: 13px; color: #8696a0; }
+
+    /* Matched by [data-testid="typing"] */
+    [data-testid="typing"] { font-size: 13px; color: #00a884; }
+
+    /* Matched by [data-testid="conversation-panel-wrapper"] */
+    [data-testid="conversation-panel-wrapper"] {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3C/svg%3E");
+    }
+
+    /* Message bubbles — matched by span.selectable-text and .copyable-text */
+    .msg {
+      display: flex;
+      margin-bottom: 2px;
+    }
+    .msg.in { justify-content: flex-start; }
+    .msg.out { justify-content: flex-end; }
+
+    .bubble {
+      max-width: 65%;
+      border-radius: 8px;
+      padding: 6px 10px 8px;
+      font-size: 14.5px;
+      line-height: 19px;
+      position: relative;
+    }
+    .msg.in .bubble { background: #202c33; }
+    .msg.out .bubble { background: #005c4b; }
+
+    /* Matched by span.selectable-text */
+    .selectable-text { color: #e9edef; display: block; }
+    .copyable-text { color: #e9edef; display: block; }
+
+    .msg-time { font-size: 11px; color: #8696a0; text-align: right; margin-top: 2px; }
+
+    /* Media */
+    .msg-img {
+      width: 200px;
+      height: 140px;
+      border-radius: 6px;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* Matched by [data-testid="link-preview"] */
+    [data-testid="link-preview"] {
+      background: #1a2530;
+      border-left: 4px solid #00a884;
+      border-radius: 4px;
+      padding: 8px 10px;
+      margin-top: 4px;
+      font-size: 13px;
+    }
+    .link-title { color: #e9edef; font-weight: 500; }
+    .link-url { color: #8696a0; font-size: 12px; }
+
+    /* Controls overlay (not part of WhatsApp; lets you test manually) */
+    .controls {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background: #202c33;
+      border: 1px solid #2a3942;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      z-index: 9999;
+    }
+    .controls h3 { color: #00a884; margin-bottom: 8px; font-size: 13px; }
+    .controls label { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; color: #e9edef; cursor: pointer; }
+    .controls input[type="range"] { width: 100px; }
+  </style>
+</head>
+<body>
+
+<div class="notice">
+  <strong>What's Not Up — Local Demo Page</strong> —
+  Load the extension, enable Privacy Mode, and verify protections work on this page.
+  This page uses the same DOM patterns the extension targets.
+</div>
+
+<div class="layout">
+
+  <!-- Sidebar: chat list -->
+  <div id="pane-side">
+    <div class="sidebar-header">Chats</div>
+
+    <!-- Chat 1 -->
+    <div class="chat-item">
+      <div class="avatar">
+        <img alt="Profile photo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='49' height='49'%3E%3Ccircle cx='24.5' cy='24.5' r='24.5' fill='%23667781'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='central' text-anchor='middle' fill='white' font-size='20'%3E👤%3C/text%3E%3C/svg%3E" />
+      </div>
+      <div class="chat-info">
+        <div class="chat-name">
+          <span class="chat-name-span" title="Alice Johnson" dir="ltr">Alice Johnson</span>
+        </div>
+        <div class="chat-preview" data-testid="last-msg">Hey, are you free tonight?</div>
+      </div>
+    </div>
+
+    <!-- Chat 2 -->
+    <div class="chat-item">
+      <div class="avatar">
+        <img alt="Profile photo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='49' height='49'%3E%3Ccircle cx='24.5' cy='24.5' r='24.5' fill='%23667781'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='central' text-anchor='middle' fill='white' font-size='20'%3E👥%3C/text%3E%3C/svg%3E" />
+      </div>
+      <div class="chat-info">
+        <div class="chat-name">
+          <span class="chat-name-span" title="Team Project" dir="ltr">Team Project</span>
+        </div>
+        <div class="chat-preview" data-testid="last-msg">Bob: I'll push the PR tonight</div>
+      </div>
+    </div>
+
+    <!-- Chat 3 -->
+    <div class="chat-item">
+      <div class="avatar">
+        <img alt="Profile photo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='49' height='49'%3E%3Ccircle cx='24.5' cy='24.5' r='24.5' fill='%23667781'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='central' text-anchor='middle' fill='white' font-size='20'%3E👤%3C/text%3E%3C/svg%3E" />
+      </div>
+      <div class="chat-info">
+        <div class="chat-name">
+          <span class="chat-name-span" title="Bob Smith" dir="ltr">Bob Smith</span>
+        </div>
+        <div class="chat-preview" data-testid="last-msg">The meeting is at 3pm</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main chat pane -->
+  <div id="main">
+
+    <!-- Header -->
+    <header data-testid="conversation-header">
+      <div class="avatar">
+        <img alt="Profile photo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23667781'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='central' text-anchor='middle' fill='white' font-size='16'%3E👤%3C/text%3E%3C/svg%3E" />
+      </div>
+      <div>
+        <div class="header-title" data-testid="conversation-info-header-chat-title" dir="ltr">Alice Johnson</div>
+        <div class="header-meta">
+          <span data-testid="status">last seen today at 2:34 PM</span>
+          <span data-testid="typing" style="display:none">typing…</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Messages -->
+    <div data-testid="conversation-panel-wrapper">
+
+      <div class="msg in">
+        <div class="bubble">
+          <span class="selectable-text copyable-text">Hey! How are you doing?</span>
+          <div class="msg-time">2:30 PM</div>
+        </div>
+      </div>
+
+      <div class="msg out">
+        <div class="bubble">
+          <span class="selectable-text copyable-text">Doing well, thanks! Working on something interesting.</span>
+          <div class="msg-time">2:31 PM</div>
+        </div>
+      </div>
+
+      <div class="msg in">
+        <div class="bubble">
+          <span class="selectable-text copyable-text">Oh nice, what are you building?</span>
+          <div class="msg-time">2:32 PM</div>
+        </div>
+      </div>
+
+      <div class="msg out">
+        <div class="bubble">
+          <span class="selectable-text copyable-text">A privacy extension for WhatsApp Web. Here's the repo:</span>
+          <div data-testid="link-preview">
+            <div class="link-title">What's Not Up — GitHub</div>
+            <div class="link-url">github.com/skandachandrashekhar335-wq/whatsapp-privacy-enhacer</div>
+          </div>
+          <div class="msg-time">2:33 PM</div>
+        </div>
+      </div>
+
+      <div class="msg in">
+        <div class="bubble">
+          <!-- Blob image: matched by img[src*="blob:"] — we use a data URI as closest equivalent -->
+          <img class="msg-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='140'%3E%3Crect width='200' height='140' fill='%232a3942'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='central' text-anchor='middle' fill='%238696a0' font-size='14'%3E📷 Photo%3C/text%3E%3C/svg%3E" alt="Sent photo" />
+          <div class="msg-time">2:34 PM</div>
+        </div>
+      </div>
+
+      <div class="msg in">
+        <div class="bubble">
+          <span class="selectable-text copyable-text">That's really cool! Are you free tonight to demo it?</span>
+          <div class="msg-time">2:35 PM</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Manual test controls (not part of the extension UI) -->
+<div class="controls">
+  <h3>Demo Controls</h3>
+  <label>
+    <input type="checkbox" id="toggleTyping" />
+    Show typing indicator
+  </label>
+  <label>
+    Blur (px): <input type="range" id="blurSlider" min="2" max="20" value="8" />
+    <span id="blurVal">8</span>
+  </label>
+  <div style="color:#8696a0;font-size:11px;margin-top:8px;">
+    Enable Privacy Mode via the extension popup, then test reveal on each blurred element.
+  </div>
+</div>
+
+<script>
+  // Typing indicator toggle
+  document.getElementById('toggleTyping').addEventListener('change', function() {
+    const typingEl = document.querySelector('[data-testid="typing"]');
+    const statusEl = document.querySelector('[data-testid="status"]');
+    if (this.checked) {
+      typingEl.style.display = 'inline';
+      statusEl.style.display = 'none';
+    } else {
+      typingEl.style.display = 'none';
+      statusEl.style.display = 'inline';
+    }
+  });
+
+  // Blur slider (updates the demo's own style; extension manages its own)
+  const blurSlider = document.getElementById('blurSlider');
+  const blurVal = document.getElementById('blurVal');
+  blurSlider.addEventListener('input', function() {
+    blurVal.textContent = this.value;
+  });
+</script>
+
+</body>
+</html>
