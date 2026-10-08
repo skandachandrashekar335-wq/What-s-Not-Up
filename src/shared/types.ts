@@ -22,6 +22,11 @@ export interface PrivacySettings {
   hideTypingIndicator: boolean;
   hideLastSeen: boolean;
 
+  // Instagram-specific content protection toggles (also visible on the
+  // options page; they simply have no matching content on WhatsApp Web).
+  blurCaptions: boolean;
+  blurComments: boolean;
+
   // Reveal behaviour
   revealMode: RevealMode;
   temporaryRevealDurationMs: number; // milliseconds
@@ -54,6 +59,8 @@ export const DEFAULT_SETTINGS: PrivacySettings = {
   hideOnlineStatus: true,
   hideTypingIndicator: true,
   hideLastSeen: true,
+  blurCaptions: true,
+  blurComments: true,
   revealMode: 'hover',
   temporaryRevealDurationMs: 3000,
   blurIntensity: 8,

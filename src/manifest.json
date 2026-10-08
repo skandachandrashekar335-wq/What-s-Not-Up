@@ -3,7 +3,7 @@
   "name": "What's Not Up",
   "short_name": "What's Not Up",
   "version": "1.0.0",
-  "description": "A privacy layer for WhatsApp Web. Blurs messages, names, photos and media locally in your browser.",
+  "description": "A local visual privacy layer for WhatsApp Web and Instagram. Blurs messages, names, photos and media locally in your browser.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -25,7 +25,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://web.whatsapp.com/*"],
+      "matches": ["https://web.whatsapp.com/*", "https://www.instagram.com/*"],
       "js": ["content.js"],
       "run_at": "document_idle",
       "all_frames": false
@@ -37,12 +37,13 @@
     "tabs"
   ],
   "host_permissions": [
-    "https://web.whatsapp.com/*"
+    "https://web.whatsapp.com/*",
+    "https://www.instagram.com/*"
   ],
   "web_accessible_resources": [
     {
       "resources": ["icons/*"],
-      "matches": ["https://web.whatsapp.com/*"]
+      "matches": ["https://web.whatsapp.com/*", "https://www.instagram.com/*"]
     }
   ]
 }

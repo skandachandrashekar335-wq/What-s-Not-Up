@@ -4,7 +4,7 @@
 
 What's Not Up is a browser extension that applies visual effects to WhatsApp Web. Its attack surface is limited:
 
-- The extension runs only on `https://web.whatsapp.com`
+- The extension runs only on `https://web.whatsapp.com` and `https://www.instagram.com`
 - It does not handle credentials, payment data, or sensitive user information
 - It does not make any network requests of its own
 - Settings are stored locally in `chrome.storage.local`
@@ -25,7 +25,7 @@ Please include:
 
 - XSS or script injection via the extension's own UI pages (popup, options, onboarding)
 - Privilege escalation through the content script or service worker
-- Unintended data access beyond `web.whatsapp.com`
+- Unintended data access beyond `web.whatsapp.com` and `www.instagram.com`
 - Settings being readable or writable by a third-party page
 
 ## What is out of scope

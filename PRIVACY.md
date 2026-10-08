@@ -1,12 +1,12 @@
 # Privacy Policy — What's Not Up
 
-**What's Not Up is a local privacy tool. It does not collect, store, or transmit any message content. Privacy transformations are applied locally in the browser to content already rendered by WhatsApp Web.**
+**What's Not Up is a local privacy tool. The extension does not collect, store, or transmit content. Privacy transformations are applied locally to content already rendered by the website.**
 
 ---
 
 ## What the extension does
 
-What's Not Up applies CSS-based visual blur and hide effects to the WhatsApp Web page you are already viewing. To do this, it inspects DOM elements that WhatsApp Web has already rendered in your browser in order to identify which elements to apply transformations to. It does not read, store, or transmit the content of those elements — it only applies visual CSS effects to them locally.
+What's Not Up applies CSS-based visual blur and hide effects to the WhatsApp Web and Instagram pages you are already viewing. To do this, it inspects DOM elements that the website has already rendered in your browser in order to identify which elements to apply transformations to. It does not collect, store, or transmit those elements or their content — it only applies visual CSS effects to them locally.
 
 The extension is a filter on your screen, not an interceptor of your data.
 
@@ -15,11 +15,11 @@ The extension is a filter on your screen, not an interceptor of your data.
 **None.**
 
 The extension does not:
-- read the content of your messages
+- collect, store, or transmit content from the pages it transforms
 - record contact names, phone numbers, or group names
-- access your WhatsApp account credentials
-- intercept or inspect WhatsApp's network traffic
-- store any WhatsApp data of any kind
+- access your WhatsApp or Instagram account credentials
+- intercept or inspect the websites' network traffic
+- store any page data of any kind
 
 ## Data stored
 
@@ -43,31 +43,33 @@ The stored object looks like:
 }
 ```
 
-No message content, contact data, or any WhatsApp information is ever stored.
+No page content, contact data, or any site information is ever stored.
 
 ## Permissions used
 
 | Permission | Why |
 |---|---|
 | `storage` | To save your settings locally |
-| `tabs` | So the popup can detect if you're on WhatsApp Web and send control messages to the content script |
+| `tabs` | So the popup can detect which supported site you're on and send control messages to the content script |
 | `https://web.whatsapp.com/*` | To run the content script on WhatsApp Web only |
+| `https://www.instagram.com/*` | To run the content script on Instagram only |
 
 No other permissions are requested. The extension does not have access to any other websites.
 
 ## What the extension cannot do (by design)
 
-- It cannot read your encrypted messages — WhatsApp's end-to-end encryption is unaffected
-- It cannot access messages on WhatsApp's servers
-- It cannot operate outside of `web.whatsapp.com`
+- It does not collect, store, or transmit content — privacy transformations are applied locally to content already rendered by the website
+- It does not access anything on WhatsApp's or Instagram's servers
+- It does not operate outside of `web.whatsapp.com` and `www.instagram.com`
 - It cannot take screenshots of your screen (that is an OS-level capability this extension does not have)
 
 ## How privacy mode works technically
 
 When privacy mode is enabled, the extension:
-1. Injects a `<style>` tag that applies `filter: blur(Xpx)` to elements matching WhatsApp's DOM structure
+1. Injects a `<style>` tag that applies `filter: blur(Xpx)` to elements identified by the current site's adapter (WhatsApp Web or Instagram)
 2. Attaches mouse/click event listeners to those elements for the reveal feature
-3. Uses a `MutationObserver` to catch newly-loaded content (new messages, chat switches)
+3. Uses a `MutationObserver` to catch newly-loaded content (new messages, chat switches, scrolled-in posts and comments)
+4. Re-applies protections automatically when you change settings — no page reload
 
 When privacy mode is disabled, all CSS attributes are removed and all event listeners are cleaned up. The page returns to its normal state.
 

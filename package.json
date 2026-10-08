@@ -1,7 +1,7 @@
 {
   "name": "whats-not-up",
   "version": "1.0.0",
-  "description": "A privacy layer for WhatsApp Web",
+  "description": "A local visual privacy layer for WhatsApp Web and Instagram",
   "private": true,
   "scripts": {
     "icons:generate": "node scripts/generate-icons.mjs",

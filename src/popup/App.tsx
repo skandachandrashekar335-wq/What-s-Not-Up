@@ -1,18 +1,50 @@
 import { useState, useEffect, useCallback } from 'react';
 import { PrivacySettings, ExtensionMessage, RevealMode } from '../shared/types';
 import { loadSettings, patchSettings } from '../shared/storage';
+import { siteIdForUrl, SiteId } from '../content/sites/detect';
 
 interface Tab {
   id?: number;
   url?: string;
 }
 
+/** Which protection toggles are meaningful on each supported site. */
+const WHATSAPP_TOGGLES: { key: keyof PrivacySettings; label: string }[] = [
+  { key: 'blurMessages', label: 'Messages' },
+  { key: 'blurContactNames', label: 'Contact & group names' },
+  { key: 'blurProfilePhotos', label: 'Profile photos' },
+  { key: 'blurImages', label: 'Images' },
+  { key: 'blurVideos', label: 'Videos' },
+  { key: 'blurGifsStickers', label: 'GIFs & stickers' },
+  { key: 'blurLinkPreviews', label: 'Link previews' },
+  { key: 'blurChatListPreviews', label: 'Chat list previews' },
+];
+
+const INSTAGRAM_TOGGLES: { key: keyof PrivacySettings; label: string }[] = [
+  { key: 'blurProfilePhotos', label: 'Profile photos' },
+  { key: 'blurImages', label: 'Photos (feed, posts, stories)' },
+  { key: 'blurVideos', label: 'Videos & reels' },
+  { key: 'blurCaptions', label: 'Captions' },
+  { key: 'blurComments', label: 'Comments & comment authors' },
+];
+
+const SITE_TOGGLE_LABELS: Record<SiteId, { key: keyof PrivacySettings; label: string }[]> = {
+  whatsapp: WHATSAPP_TOGGLES,
+  instagram: INSTAGRAM_TOGGLES,
+};
+
+const SITE_NAMES: Record<SiteId, string> = {
+  whatsapp: 'WhatsApp Web',
+  instagram: 'Instagram',
+};
+
 export default function App() {
   const [settings, setSettings] = useState<PrivacySettings | null>(null);
   const [activeTab, setActiveTab] = useState<Tab | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const isOnWhatsApp = activeTab?.url?.startsWith('https://web.whatsapp.com') ?? false;
+  const site: SiteId | null = activeTab?.url ? siteIdForUrl(activeTab.url) : null;
+  const isSupportedSite = site !== null;
 
   useEffect(() => {
     async function init() {
@@ -31,18 +63,19 @@ export default function App() {
     setSettings(updated);
     await patchSettings(patch);
 
-    // Notify content script
-    if (activeTab?.id && isOnWhatsApp) {
+    // Redundant fast path: the content script also reacts to
+    // chrome.storage.onChanged, and identical payloads are deduplicated.
+    if (activeTab?.id && isSupportedSite) {
       chrome.tabs.sendMessage(activeTab.id, {
         type: 'SETTINGS_UPDATED',
         settings: updated,
       } satisfies ExtensionMessage).catch(() => {});
     }
-  }, [settings, activeTab, isOnWhatsApp]);
+  }, [settings, activeTab, isSupportedSite]);
 
   const handlePrivacyToggle = (enabled: boolean) => update({ privacyEnabled: enabled });
   const handleQuickLock = () => {
-    if (activeTab?.id && isOnWhatsApp) {
+    if (activeTab?.id && isSupportedSite) {
       chrome.tabs.sendMessage(activeTab.id, { type: 'QUICK_LOCK' } satisfies ExtensionMessage).catch(() => {});
     }
     window.close();
@@ -63,6 +96,8 @@ export default function App() {
     hideOnlineStatus: true,
     hideTypingIndicator: true,
     hideLastSeen: true,
+    blurCaptions: true,
+    blurComments: true,
   });
 
   const openSettings = () => chrome.runtime.openOptionsPage();
@@ -83,7 +118,7 @@ export default function App() {
           <span className="header-logo" aria-hidden="true">👻</span>
           <div>
             <div className="header-title">What's Not Up</div>
-            <div className="header-subtitle">Privacy layer for WhatsApp Web</div>
+            <div className="header-subtitle">Local privacy layer for WhatsApp & Instagram</div>
           </div>
         </div>
         <button
@@ -96,8 +131,8 @@ export default function App() {
         </button>
       </header>
 
-      {!isOnWhatsApp ? (
-        <NotOnWhatsApp />
+      {!isSupportedSite ? (
+        <NotOnSupportedSite />
       ) : (
         <>
           {/* Privacy master toggle */}
@@ -134,60 +169,24 @@ export default function App() {
             </button>
           </section>
 
-          {/* Protection toggles */}
+          {/* Protection toggles (site-aware) */}
           <section className="section">
-            <div className="section-title">Content Protection</div>
-            <ToggleRow
-              label="Messages"
-              checked={settings.blurMessages}
-              disabled={!settings.privacyEnabled}
-              onChange={(v) => update({ blurMessages: v })}
-            />
-            <ToggleRow
-              label="Contact & group names"
-              checked={settings.blurContactNames}
-              disabled={!settings.privacyEnabled}
-              onChange={(v) => update({ blurContactNames: v })}
-            />
-            <ToggleRow
-              label="Profile photos"
-              checked={settings.blurProfilePhotos}
-              disabled={!settings.privacyEnabled}
-              onChange={(v) => update({ blurProfilePhotos: v })}
-            />
-            <ToggleRow
-              label="Images"
-              checked={settings.blurImages}
-              disabled={!settings.privacyEnabled}
-              onChange={(v) => update({ blurImages: v })}
-            />
-            <ToggleRow
-              label="Videos"
-              checked={settings.blurVideos}
-              disabled={!settings.privacyEnabled}
-              onChange={(v) => update({ blurVideos: v })}
-            />
-            <ToggleRow
-              label="GIFs & stickers"
-              checked={settings.blurGifsStickers}
-              disabled={!settings.privacyEnabled}
-              onChange={(v) => update({ blurGifsStickers: v })}
-            />
-            <ToggleRow
-              label="Link previews"
-              checked={settings.blurLinkPreviews}
-              disabled={!settings.privacyEnabled}
-              onChange={(v) => update({ blurLinkPreviews: v })}
-            />
-            <ToggleRow
-              label="Chat list previews"
-              checked={settings.blurChatListPreviews}
-              disabled={!settings.privacyEnabled}
-              onChange={(v) => update({ blurChatListPreviews: v })}
-            />
+            <div className="section-title">
+              Content Protection · {site ? SITE_NAMES[site] : ''}
+            </div>
+            {site && SITE_TOGGLE_LABELS[site].map(({ key, label }) => (
+              <ToggleRow
+                key={key}
+                label={label}
+                checked={Boolean(settings[key])}
+                disabled={!settings.privacyEnabled}
+                onChange={(v) => update({ [key]: v } as Partial<PrivacySettings>)}
+              />
+            ))}
           </section>
 
-          {/* Status toggles */}
+          {/* Status toggles (WhatsApp only — Instagram has no equivalents) */}
+          {site === 'whatsapp' && (
           <section className="section">
             <div className="section-title">Status Visibility</div>
             <ToggleRow
@@ -203,7 +202,7 @@ export default function App() {
               onChange={(v) => update({ hideTypingIndicator: v })}
             />
           </section>
-
+          )}
           {/* Reveal mode */}
           <section className="reveal-section">
             <div className="reveal-label">Reveal on</div>
@@ -255,23 +254,33 @@ export default function App() {
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-function NotOnWhatsApp() {
+function NotOnSupportedSite() {
   return (
     <div className="not-on-wa">
       <div className="not-on-wa-icon">💬</div>
-      <div className="not-on-wa-title">Open WhatsApp Web first</div>
+      <div className="not-on-wa-title">Open a supported site first</div>
       <div className="not-on-wa-desc">
-        What's Not Up works on <strong>web.whatsapp.com</strong>.<br />
+        What's Not Up works on <strong>web.whatsapp.com</strong> and <strong>www.instagram.com</strong>.<br />
         Navigate there to use the extension.
       </div>
-      <a
-        className="not-on-wa-link"
-        href="https://web.whatsapp.com"
-        target="_blank"
-        rel="noreferrer"
-      >
-        Open WhatsApp Web
-      </a>
+      <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
+        <a
+          className="not-on-wa-link"
+          href="https://web.whatsapp.com"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Open WhatsApp Web
+        </a>
+        <a
+          className="not-on-wa-link"
+          href="https://www.instagram.com"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Open Instagram
+        </a>
+      </div>
     </div>
   );
 }

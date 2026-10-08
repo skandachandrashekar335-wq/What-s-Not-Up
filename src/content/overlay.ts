@@ -7,14 +7,27 @@
 
 const OVERLAY_ID = 'wnu-overlay';
 
+/**
+ * Focus restoration + keyboard dismissal.
+ *
+ * The overlay is an opaque, full-screen `role="dialog"`. Without focus
+ * management a screen-reader or keyboard user would keep navigating content
+ * that is visually hidden behind it, and with no Escape binding the overlay
+ * could only be dismissed by mouse or by remembering the shortcut.
+ */
+let escapeHandler: ((e: KeyboardEvent) => void) | null = null;
+let previouslyFocused: Element | null = null;
+
 export function showOverlay(): void {
   if (document.getElementById(OVERLAY_ID)) return;
 
   const overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
   overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
   overlay.setAttribute('aria-label', 'Privacy overlay active');
   overlay.setAttribute('aria-live', 'polite');
+  overlay.tabIndex = -1;
 
   overlay.style.cssText = `
     position: fixed;
@@ -46,7 +59,7 @@ export function showOverlay(): void {
   `;
 
   const subtitle = document.createElement('div');
-  subtitle.textContent = 'WhatsApp content hidden';
+  subtitle.textContent = 'Protected content hidden';
   subtitle.style.cssText = `
     color: #9fa8da;
     font-size: 14px;
@@ -54,7 +67,7 @@ export function showOverlay(): void {
   `;
 
   const hint = document.createElement('div');
-  hint.textContent = 'Click anywhere or press Ctrl+Shift+P to restore';
+  hint.textContent = 'Click anywhere, press Esc, or press Ctrl+Shift+P to restore';
   hint.style.cssText = `
     color: #5c6bc0;
     font-size: 12px;
@@ -69,10 +82,39 @@ export function showOverlay(): void {
   overlay.addEventListener('click', hideOverlay, { once: true });
 
   document.documentElement.appendChild(overlay);
+
+  // Move focus into the dialog — assistive tech must not keep navigating the
+  // page that is now hidden behind an opaque cover — and remember where to
+  // return focus once the overlay is dismissed.
+  previouslyFocused = document.activeElement instanceof Element ? document.activeElement : null;
+  try {
+    overlay.focus({ preventScroll: true });
+  } catch {
+    overlay.focus();
+  }
+
+  escapeHandler = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') hideOverlay();
+  };
+  document.addEventListener('keydown', escapeHandler);
 }
 
 export function hideOverlay(): void {
+  if (escapeHandler) {
+    document.removeEventListener('keydown', escapeHandler);
+    escapeHandler = null;
+  }
   document.getElementById(OVERLAY_ID)?.remove();
+
+  const target = previouslyFocused;
+  previouslyFocused = null;
+  if (target && target.isConnected) {
+    try {
+      (target as HTMLElement).focus({ preventScroll: true });
+    } catch {
+      // element cannot take focus — leaving focus where it is is acceptable
+    }
+  }
 }
 
 export function isOverlayVisible(): boolean {

@@ -143,6 +143,12 @@ if (contentScripts.length === 0) {
     } else {
       ok(`matches includes web.whatsapp.com`);
     }
+    const hasInstagram = matches.some(m => m.includes('www.instagram.com'));
+    if (!hasInstagram) {
+      warn(`content script matches ${JSON.stringify(matches)} — does not include www.instagram.com`);
+    } else {
+      ok('matches includes www.instagram.com');
+    }
     for (const jsFile of cs.js ?? []) {
       if (!fileExists(jsFile)) {
         fail(`content script "${jsFile}" does not exist in dist/`);
@@ -258,6 +264,24 @@ if (hasAllUrls) {
   fail('host_permissions grants broad <all_urls> access');
 } else {
   ok('host_permissions does not grant broad access');
+}
+
+// The extension is only supposed to run on the two supported sites.
+const allowedHosts = ['https://web.whatsapp.com/*', 'https://www.instagram.com/*'];
+for (const p of hostPerms) {
+  if (!allowedHosts.includes(p)) {
+    fail(`unexpected host permission "${p}" — only ${allowedHosts.join(' and ')} are allowed`);
+  }
+}
+if (!hostPerms.includes('https://web.whatsapp.com/*')) {
+  fail('host_permissions missing https://web.whatsapp.com/*');
+} else {
+  ok('host_permissions includes https://web.whatsapp.com/*');
+}
+if (!hostPerms.includes('https://www.instagram.com/*')) {
+  fail('host_permissions missing https://www.instagram.com/*');
+} else {
+  ok('host_permissions includes https://www.instagram.com/*');
 }
 
 // ── Summary ──────────────────────────────────────────────────────────────────

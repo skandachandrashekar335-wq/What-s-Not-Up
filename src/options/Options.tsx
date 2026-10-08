@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { PrivacySettings, ThemeMode, RevealMode } from '../shared/types';
 import { loadSettings, patchSettings, resetSettings } from '../shared/storage';
+import { SUPPORTED_HOST_PATTERNS } from '../content/sites/detect';
 
 type Section = 'privacy' | 'content' | 'reveal' | 'focus' | 'appearance' | 'advanced';
 
@@ -29,8 +30,9 @@ export default function Options() {
     setSettings(updated);
     await patchSettings(patch);
 
-    // Notify any open WhatsApp Web tabs
-    const tabs = await chrome.tabs.query({ url: 'https://web.whatsapp.com/*' });
+    // Notify any open supported-site tabs. The content script also reacts to
+    // chrome.storage.onChanged; identical payloads are deduplicated there.
+    const tabs = await chrome.tabs.query({ url: [...SUPPORTED_HOST_PATTERNS] });
     tabs.forEach((tab) => {
       if (tab.id) {
         chrome.tabs.sendMessage(tab.id, {
@@ -51,7 +53,7 @@ export default function Options() {
     const defaults = await resetSettings();
     setSettings(defaults);
 
-    const tabs = await chrome.tabs.query({ url: 'https://web.whatsapp.com/*' });
+    const tabs = await chrome.tabs.query({ url: [...SUPPORTED_HOST_PATTERNS] });
     tabs.forEach((tab) => {
       if (tab.id) {
         chrome.tabs.sendMessage(tab.id, {
@@ -119,7 +121,7 @@ function PrivacySection({ settings, onUpdate }: SectionProps) {
       <div className="card">
         <SettingRow
           label="Privacy Mode"
-          desc="Enable all active protections on WhatsApp Web."
+          desc="Enable all active protections on supported sites (WhatsApp Web, Instagram)."
           control={
             <Toggle id="s-privacy" checked={settings.privacyEnabled} onChange={(v) => onUpdate({ privacyEnabled: v })} />
           }
@@ -160,15 +162,23 @@ function ContentSection({ settings, onUpdate }: SectionProps) {
       <p className="page-desc">Choose which content types to blur when privacy mode is active.</p>
 
       <div className="card">
-        <SettingRow label="Messages" desc="Blur message text in conversations." control={<Toggle id="s-msg" checked={settings.blurMessages} onChange={(v) => onUpdate({ blurMessages: v })} />} />
+        <div className="card-title">Shared & WhatsApp</div>
+        <SettingRow label="Messages" desc="Blur message text in WhatsApp conversations." control={<Toggle id="s-msg" checked={settings.blurMessages} onChange={(v) => onUpdate({ blurMessages: v })} />} />
         <SettingRow label="Contact & group names" desc="Blur names in the chat list and header." control={<Toggle id="s-names" checked={settings.blurContactNames} onChange={(v) => onUpdate({ blurContactNames: v })} />} />
-        <SettingRow label="Profile photos" desc="Blur avatar thumbnails throughout the interface." control={<Toggle id="s-photos" checked={settings.blurProfilePhotos} onChange={(v) => onUpdate({ blurProfilePhotos: v })} />} />
-        <SettingRow label="Images" desc="Blur image attachments in conversations." control={<Toggle id="s-img" checked={settings.blurImages} onChange={(v) => onUpdate({ blurImages: v })} />} />
-        <SettingRow label="Videos" desc="Blur video thumbnails and players." control={<Toggle id="s-vid" checked={settings.blurVideos} onChange={(v) => onUpdate({ blurVideos: v })} />} />
+        <SettingRow label="Profile photos" desc="Blur avatar thumbnails (applies on both sites)." control={<Toggle id="s-photos" checked={settings.blurProfilePhotos} onChange={(v) => onUpdate({ blurProfilePhotos: v })} />} />
+        <SettingRow label="Images" desc="Blur image attachments and feed photos (applies on both sites)." control={<Toggle id="s-img" checked={settings.blurImages} onChange={(v) => onUpdate({ blurImages: v })} />} />
+        <SettingRow label="Videos" desc="Blur video thumbnails, players and reels (applies on both sites)." control={<Toggle id="s-vid" checked={settings.blurVideos} onChange={(v) => onUpdate({ blurVideos: v })} />} />
         <SettingRow label="GIFs & stickers" desc="Blur animated GIFs and stickers where detectable." control={<Toggle id="s-gif" checked={settings.blurGifsStickers} onChange={(v) => onUpdate({ blurGifsStickers: v })} />} />
         <SettingRow label="Document previews" desc="Blur document thumbnail previews." control={<Toggle id="s-doc" checked={settings.blurDocumentPreviews} onChange={(v) => onUpdate({ blurDocumentPreviews: v })} />} />
         <SettingRow label="Link previews" desc="Blur URL preview cards in messages." control={<Toggle id="s-link" checked={settings.blurLinkPreviews} onChange={(v) => onUpdate({ blurLinkPreviews: v })} />} />
         <SettingRow label="Chat list previews" desc="Blur message preview text in the contact list." control={<Toggle id="s-preview" checked={settings.blurChatListPreviews} onChange={(v) => onUpdate({ blurChatListPreviews: v })} />} />
+      </div>
+
+      <div className="card">
+        <div className="card-title">Instagram</div>
+        <SettingRow label="Captions" desc="Blur post captions on profiles and in the feed." control={<Toggle id="s-cap" checked={settings.blurCaptions} onChange={(v) => onUpdate({ blurCaptions: v })} />} />
+        <SettingRow label="Comments & comment authors" desc="Blur whole comment rows — author, avatar, timestamp and text reveal together." control={<Toggle id="s-comments" checked={settings.blurComments} onChange={(v) => onUpdate({ blurComments: v })} />} />
+        <SettingRow label="Note" desc="Profile photos, images, videos & reels use the shared toggles above. Direct messages and the stories/reels viewers are not yet supported — see Limitations in the docs." control={null} />
       </div>
     </>
   );
@@ -255,12 +265,12 @@ function FocusSection({ settings, onUpdate }: SectionProps) {
   return (
     <>
       <h1 className="page-title">Focus / Window Behaviour</h1>
-      <p className="page-desc">Control privacy when WhatsApp Web loses focus.</p>
+      <p className="page-desc">Control privacy when the supported site loses focus.</p>
 
       <div className="card">
         <SettingRow
           label="Show overlay when window loses focus"
-          desc="Covers WhatsApp Web with the privacy overlay whenever you switch to another app or tab."
+          desc="Covers the page with the privacy overlay whenever you switch to another app or tab."
           control={
             <Toggle id="s-focus" checked={settings.blurOnFocusLoss} onChange={(v) => onUpdate({ blurOnFocusLoss: v })} />
           }
@@ -269,7 +279,7 @@ function FocusSection({ settings, onUpdate }: SectionProps) {
 
       <div className="card" style={{ padding: '14px 18px', fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
         <p><strong>Keyboard shortcut</strong></p>
-        <p style={{ marginTop: 6 }}>Press <kbd>Ctrl+Shift+P</kbd> (or <kbd>Cmd+Shift+P</kbd> on Mac) at any time on WhatsApp Web to toggle the privacy overlay.</p>
+        <p style={{ marginTop: 6 }}>Press <kbd>Ctrl+Shift+P</kbd> (or <kbd>Cmd+Shift+P</kbd> on Mac) at any time on a supported site to toggle the privacy overlay.</p>
       </div>
     </>
   );

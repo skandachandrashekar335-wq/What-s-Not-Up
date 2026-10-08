@@ -11,6 +11,13 @@ import { vi } from 'vitest';
 
 const storageStore: Record<string, unknown> = {};
 
+type StorageChangeListener = (
+  changes: Record<string, { newValue?: unknown; oldValue?: unknown }>,
+  areaName: string,
+) => void;
+
+const storageChangeListeners: StorageChangeListener[] = [];
+
 const chromeMock = {
   storage: {
     local: {
@@ -22,10 +29,16 @@ const chromeMock = {
         callback?.();
       }),
     },
+    onChanged: {
+      addListener: vi.fn((listener: StorageChangeListener) => {
+        storageChangeListeners.push(listener);
+      }),
+    },
   },
   runtime: {
     lastError: null as { message: string } | null,
-    sendMessage: vi.fn(),
+    // MV3 sendMessage returns a Promise; mirror that so `.catch()` works.
+    sendMessage: vi.fn(() => Promise.resolve(undefined)),
     onMessage: {
       addListener: vi.fn(),
     },
@@ -33,7 +46,8 @@ const chromeMock = {
   },
   tabs: {
     query: vi.fn(),
-    sendMessage: vi.fn(),
+    // MV3 sendMessage returns a Promise; mirror that so `.catch()` works.
+    sendMessage: vi.fn(() => Promise.resolve(undefined)),
     create: vi.fn(),
   },
   action: {
@@ -51,6 +65,24 @@ export function resetStorage(): void {
   for (const key of Object.keys(storageStore)) {
     delete storageStore[key];
   }
+}
+
+/**
+ * Fire a chrome.storage.onChanged event to every registered listener,
+ * exactly like the real API would.
+ */
+export function fireStorageChange(
+  changes: Record<string, { newValue?: unknown; oldValue?: unknown }>,
+  areaName = 'local',
+): void {
+  for (const listener of [...storageChangeListeners]) {
+    listener(changes, areaName);
+  }
+}
+
+/** Registered storage.onChanged listener count (duplicate-listener checks). */
+export function storageChangeListenerCount(): number {
+  return storageChangeListeners.length;
 }
 
 export { chromeMock };

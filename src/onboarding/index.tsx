@@ -19,7 +19,7 @@ function Onboarding() {
       <div className="hero">
         <div className="hero-icon">👻</div>
         <div className="hero-title">What's Not Up</div>
-        <div className="hero-subtitle">A privacy layer for WhatsApp Web</div>
+        <div className="hero-subtitle">A local privacy layer for WhatsApp & Instagram</div>
       </div>
       <div className="body">
         <ul className="features">
@@ -54,7 +54,7 @@ function Onboarding() {
         </ul>
 
         <div className="privacy-note">
-          🛡️ <strong>Your messages never leave your browser.</strong> What's Not Up processes everything locally and never reads, stores or sends your chat content.
+          🛡️ <strong>Your content never leaves your browser.</strong> The extension does not collect, store, or transmit content — privacy transformations are applied locally to content already rendered by the website.
         </div>
 
         <div className="actions">

@@ -9,6 +9,7 @@
 
 import { loadSettings, patchSettings } from '../shared/storage';
 import { ExtensionMessage } from '../shared/types';
+import { siteIdForUrl } from '../content/sites/detect';
 
 // ─── Install / update lifecycle ──────────────────────────────────────────────
 
@@ -43,7 +44,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage & { type: string
 chrome.action.onClicked.addListener(async (tab) => {
   // Popup handles everything; this fires only when no popup is set.
   // Kept as a fallback.
-  if (!tab.url?.startsWith('https://web.whatsapp.com')) return;
+  if (!tab.url || !siteIdForUrl(tab.url)) return;
 
   const settings = await loadSettings();
   const newEnabled = !settings.privacyEnabled;

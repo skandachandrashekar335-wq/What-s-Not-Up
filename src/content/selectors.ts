@@ -16,7 +16,13 @@
  * WhatsApp Web updates frequently; expect some selectors to drift.
  * Update this file first when a protection stops working after a WhatsApp update.
  * Add new selectors at the TOP of each array; keep old ones as fallbacks.
+ *
+ * This module is the WhatsApp site adapter's selector table. Generic
+ * selector helpers live in ./query and are re-exported here for
+ * backwards compatibility.
  */
+
+export { queryAll, queryOne } from './query';
 
 export const SELECTORS = {
   /**
@@ -53,8 +59,15 @@ export const SELECTORS = {
 
   /**
    * Profile photos (avatar thumbnails).
-   * Only matches known WhatsApp avatar patterns; avoids matching arbitrary
-   * images elsewhere on the page.
+   *
+   * Additive set — matched with `union` so every path is evaluated (a
+   * fallback chain would let one early hit suppress the rest).
+   *
+   * Only image-level and container-testid paths are listed here; rename-safe
+   * detection (a wrapper that was renamed but still says "avatar" somewhere
+   * in its testid/class/aria/CDN URL) lives in the structural resolver
+   * (sites/whatsapp/avatar-resolver.ts), which returns the <img> itself and
+   * therefore can never introduce a nested blur layer.
    */
   profilePhoto: [
     '[data-testid="default-user"]',
@@ -62,6 +75,8 @@ export const SELECTORS = {
     'img[src*="pps.whatsapp.net"]',       // CDN profile photo URL
     'img[src*="static.whatsapp.net"]',
     'img[alt="Profile photo"]',
+    'img[alt*="profile photo" i]',        // localised / reworded alt fallback
+    'img[alt*="profile picture" i]',
     '[data-testid="chatlist-avatar"] img',
     '[data-testid="conversation-header-avatar"] img',
   ],
@@ -90,6 +105,12 @@ export const SELECTORS = {
 
   /**
    * GIF and sticker containers.
+   *
+   * Additive set → matched with `union`. These are the *stable* paths only;
+   * rename-safe detection (testid contains "gif"/"sticker", aria/alt/class
+   * tokens, CDN `src` paths, canvas stickers, looped-<video> GIFs) is done by
+   * the structural classifier in sites/whatsapp/media-classifier.ts, which is
+   * additionally scoped to the conversation surface and excludes pickers.
    */
   mediaGifSticker: [
     '[data-testid="gif"]',
@@ -143,32 +164,6 @@ export const SELECTORS = {
 } as const;
 
 /**
- * Try each selector in order and return all matching elements.
- * Unknown elements produce an empty array — they are never thrown.
+ * The helpers below were moved to ./query; the re-exports at the top of this
+ * file keep `import { queryAll } from './selectors'` working.
  */
-export function queryAll(selectors: readonly string[], root: Document | Element = document): Element[] {
-  for (const sel of selectors) {
-    try {
-      const nodes = root.querySelectorAll(sel);
-      if (nodes.length > 0) return Array.from(nodes);
-    } catch {
-      // Malformed selector — skip silently
-    }
-  }
-  return [];
-}
-
-/**
- * Return the first matching element or null.
- */
-export function queryOne(selectors: readonly string[], root: Document | Element = document): Element | null {
-  for (const sel of selectors) {
-    try {
-      const node = root.querySelector(sel);
-      if (node) return node;
-    } catch {
-      // Malformed selector — skip silently
-    }
-  }
-  return null;
-}

@@ -1,6 +1,11 @@
 import { PrivacySettings, DEFAULT_SETTINGS } from './types';
 
-const STORAGE_KEY = 'wnu_settings';
+/**
+ * Storage key used for the settings object.
+ * Exported so the content script can subscribe to `chrome.storage.onChanged`
+ * for exactly this key (the primary settings-propagation mechanism).
+ */
+export const STORAGE_KEY = 'wnu_settings';
 
 /**
  * Load settings from chrome.storage.local.
