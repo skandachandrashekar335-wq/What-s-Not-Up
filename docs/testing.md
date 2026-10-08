@@ -145,9 +145,9 @@ Runs the real Instagram adapter against a fixture shaped like a logged-out publi
 
 ## What is NOT tested (and why)
 
-**Live WhatsApp selectors**: WhatsApp uses auto-generated class names and a complex SPA. The selectors in `src/content/selectors.ts` are tested against a static fake DOM, but actual selector validity against live WhatsApp can only be verified manually in a real browser session. WhatsApp can and does change its DOM without notice.
+**Live WhatsApp selectors**: WhatsApp uses auto-generated class names and a complex SPA. There is no automated test against the live site — the selectors in `src/content/selectors.ts` are tested against fixtures modelled on the current markup. The v1.0.0 release was **manually verified in Microsoft Edge against a real logged-in session** (see below), but WhatsApp can and does change its DOM without notice, so that verification is point-in-time.
 
-**Live Instagram selectors and resolvers**: Instagram selectors were checked against the *logged-out* Instagram DOM in a browser during development (profile and post permalink pages), but there is no automated test against the live site. Comment/caption structural resolvers are verified in tests against a fixture derived from that live structure; if Instagram changes its markup, the resolvers fail safe (no blur) rather than blurring the wrong thing. Logged-out feed, DMs, stories viewer and reels viewer redirect to login and were **not** verified.
+**Instagram live selectors and resolvers**: Instagram selectors were checked against the *logged-out* Instagram DOM in a browser during development (profile and post permalink pages), but there is no automated test against the live site. Comment/caption structural resolvers are verified in tests against a fixture derived from that live structure; if Instagram changes its markup, the resolvers fail safe (no blur) rather than blurring the wrong thing. Logged-out feed, DMs, stories viewer and reels viewer redirect to login, are **not implemented**, and were **not** verified.
 
 **React popup/options components**: The popup and options page UI are React components. They are not unit tested here. Manual verification against the loaded extension is required for:
 - Toggle state reflecting storage
@@ -162,6 +162,24 @@ Runs the real Instagram adapter against a fixture shaped like a logged-out publi
 **MutationObserver in practice**: `tests/mutation-observer.test.ts` exercises the real observer started by `init()` (insertion, `src` attribute change, batching, termination) against jsdom. jsdom has no layout and no real network, so it cannot prove that WhatsApp's *actual* rendered markup matches the fixtures. The real test is opening a chat/thread and seeing new content get blurred.
 
 **Firefox**: Not tested at all. MV3 support in Firefox is improving but may require manifest adjustments for compatibility.
+
+---
+
+## Verification performed for v1.0.0
+
+| Check | Result |
+|---|---|
+| `npm ci` | Pass |
+| `npm run typecheck` | Pass |
+| `npm run lint` | Pass |
+| `npm test` | Pass — 259/259 across 14 files |
+| `npm run build` | Pass |
+| `npm run validate:extension` | Pass |
+| Manual session test | **Pass — Microsoft Edge, real logged-in WhatsApp Web** |
+
+Manually confirmed in Edge: profile photos (chat list, conversation header, group info), GIFs, stickers, messages, contact/group names, chat-list previews, images and videos, dynamic content arriving after load, toggles applying live without a reload, and reveal behaviour.
+
+Not verified: Firefox (not tested at all), Instagram DMs/Stories/Reels viewers (not implemented).
 
 ---
 

@@ -11,8 +11,11 @@
 ```bash
 git clone https://github.com/skandachandrashekhar335-wq/whatsapp-privacy-enhacer.git
 cd whatsapp-privacy-enhacer
-npm install
+npm ci
+npm run build
 ```
+
+`npm ci` installs exactly what is in `package-lock.json`. Use `npm install` only when you intend to change dependencies.
 
 ## Daily workflow
 
@@ -20,23 +23,87 @@ npm install
 npm run dev     # webpack watch mode — rebuilds on save
 ```
 
-In Chrome: `chrome://extensions` → Developer mode → Load unpacked → select `dist/`
-
-After rebuilding, click the reload button on the extension card. You do not need to re-add it.
+Then load the extension once (see below) and click the reload button on its card after each rebuild. You do not need to re-add it.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
+| `npm ci` | Clean install from `package-lock.json` |
 | `npm run dev` | webpack watch mode, development output |
-| `npm run build` | production build → `dist/` |
+| `npm run build` | production build → `dist/`, then validates the extension |
+| `npm run build:dev` | development build (unminified) |
 | `npm run typecheck` | TypeScript type check (no output) |
-| `npm run lint` | ESLint |
+| `npm run lint` | ESLint over `src` |
 | `npm run lint:fix` | ESLint with auto-fix |
-| `npm run test` | Vitest single run |
+| `npm test` | Vitest single run |
 | `npm run test:watch` | Vitest watch mode |
 | `npm run test:coverage` | Coverage report in `coverage/` |
+| `npm run validate:extension` | Manifest, icon, permission and bundle validation |
 | `npm run clean` | Remove `dist/` |
+
+### Pre-commit validation
+
+Run the full gate before committing:
+
+```bash
+npm run typecheck
+npm run lint
+npm test
+npm run build
+npm run validate:extension
+```
+
+All five must pass. Do not suppress a lint rule, relax `strict`, or skip a test to get a green result — fix the underlying problem.
+
+## Loading the unpacked extension
+
+### Microsoft Edge
+
+1. Run `npm run build`
+2. Open `edge://extensions`
+3. Enable **Developer mode** (toggle, top-left)
+4. Click **Load unpacked**
+5. Select the `dist/` folder in this repository
+6. Open `https://web.whatsapp.com`
+
+### Google Chrome
+
+1. Run `npm run build`
+2. Open `chrome://extensions`
+3. Enable **Developer mode**
+4. Click **Load unpacked**
+5. Select the `dist/` folder
+6. Open `https://web.whatsapp.com`
+
+Firefox has not been tested; no Firefox installation steps are documented.
+
+## Browser debugging
+
+Open DevTools on the WhatsApp tab (F12) and check the following.
+
+**Console** — the content script logs only two things: a storage read error and an initialisation failure. Anything else appearing as `[WNU]` is unexpected.
+
+**Elements** — protections are plain attributes, so they are directly inspectable:
+
+| Attribute | Meaning |
+|---|---|
+| `data-wnu-type` | The element was *classified* into a category |
+| `data-wnu-protected` | The element is the **owner** of its region and is blurred |
+| `data-wnu-revealed` | Currently revealed (via reveal group) |
+| `data-wnu-hidden` | Hidden via `visibility: hidden` (status/typing indicators) |
+
+A quick triage:
+
+- `data-wnu-type` missing entirely → **discovery failed**; no selector or resolver matched. Use the diagnostic script.
+- `data-wnu-type` present but no `data-wnu-protected` on it or an ancestor → **ownership failed**; something absorbed it.
+- `data-wnu-protected` present but no blur visible → **CSS failed**; check `#wnu-privacy-styles` exists and the computed `filter`.
+
+**Styles** — look for `<style id="wnu-privacy-styles">` in the head. Its `filter: blur(Npx)` value tracks the settings slider.
+
+**Extension service worker** — `edge://extensions` → *Service worker* link opens the service worker console for the background context.
+
+## Live diagnostic (`scripts/whatsapp-live-diagnostic.js`)
 
 ## Project layout
 

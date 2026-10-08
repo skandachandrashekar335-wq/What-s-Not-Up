@@ -1,232 +1,401 @@
 # What's Not Up
 
-A privacy layer for WhatsApp Web and Instagram. Blurs messages, contact names, media, and status indicators on WhatsApp, and profile photos, posts, videos, captions, and comments on Instagram, so you can use either site in public without worrying about shoulder-surfing.
+A privacy-focused browser extension that locally protects sensitive content rendered by WhatsApp Web and Instagram.
 
-Everything runs locally in your browser. No data leaves your machine.
-
----
-
-## Why this exists
-
-WhatsApp Web is useful but visually exposed. On a train, in a coffee shop, or in a shared office, your messages are readable by anyone nearby. This extension puts a configurable blur over the content you care about, lets you reveal individual items on hover or click, and gives you a one-keystroke emergency lock.
-
-The extension does not collect, store, or transmit content. Privacy transformations are applied locally to content already rendered by the website.
+![version](https://img.shields.io/badge/version-1.0.0-0F1117)
+![tests](https://img.shields.io/badge/tests-259%20passing-4c1)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
+![Manifest V3](https://img.shields.io/badge/Manifest-V3-0F1117)
+![browsers](https://img.shields.io/badge/Chromium-Chrome%20%7C%20Edge-4285F4?logo=googlechrome&logoColor=white)
 
 ---
 
-## What it actually does
+> **WhatsApp remains WhatsApp.** What's Not Up only changes how sensitive content is displayed in your browser.
 
-**Privacy controls**
-- Global privacy mode on/off
-- Per-type blur toggles: messages, contact names, profile photos, images, videos, GIFs/stickers, document previews, link previews, chat-list previews, chat header
-- Online status, typing indicator, and last-seen visual hiding
+The extension does not talk to WhatsApp, does not talk to a server, and does not have a server to talk to. It reads the page your browser has already rendered, decides which parts are sensitive, and applies a CSS blur to them.
 
-**Instagram**
-- Blur toggles for profile photos, photos (grid, posts, stories covers), videos & reels, captions, and comments
-- A comment row is treated as one region — author, timestamp, and text reveal and re-blur together
-- Only reliably identifiable content is blurred; anything the adapter cannot identify is left visible (fail-safe)
+- Runs entirely locally in your browser
+- No backend, no telemetry, no analytics
+- Does not store messages
+- Does not transmit message content
+- Does not use WhatsApp or Instagram APIs
+- Does not intercept network traffic
+- Does not automate WhatsApp in any way
+- Does not collect credentials
 
-**Reveal system**
-- Hover to reveal — move the mouse over blurred content to see it
-- Click to toggle — click once to reveal, click again to hide
-- Timed reveal — content reappears briefly then re-blurs (configurable duration)
-- Configurable blur intensity (2–20px)
-
-**Quick privacy**
-- `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac) — instant full-screen lock overlay
-- Quick Lock button in the popup
-- Max Privacy button — enables all protections at once
-- Optional auto-blur when WhatsApp loses window focus
-
-**UI**
-- Compact popup with all primary controls
-- Full settings page with theme support (light/dark/system)
-- First-run onboarding explaining what the extension does and doesn't do
-- Emergency overlay screen
+Privacy details: [`docs/privacy.md`](docs/privacy.md)
 
 ---
 
-## Architecture
+## Features
+
+### Privacy controls
+
+| Control | WhatsApp Web | Instagram |
+|---|:---:|:---:|
+| Privacy Mode (master switch) | ✓ | ✓ |
+| Message protection | ✓ | — |
+| Contact / group name protection | ✓ | — |
+| Profile photo protection | ✓ | ✓ |
+| Image protection | ✓ | ✓ |
+| Video protection | ✓ | ✓ |
+| GIF / sticker protection | ✓ | — |
+| Document preview protection | ✓ | — |
+| Link preview protection | ✓ | — |
+| Chat-list preview protection | ✓ | — |
+| Chat header protection | ✓ | — |
+| Online status / typing / last-seen visibility | ✓ | — |
+| Caption protection | — | ✓ |
+| Comment protection | — | ✓ |
+
+Every toggle is independent. Turning one category off never disables another, and a category that is off never absorbs one that is on.
+
+### Reveal system
+
+| Behaviour | Detail |
+|---|---|
+| Hover reveal | Move the pointer over blurred content to see it; leaving re-blurs it |
+| Click reveal | Click to reveal, click again to hide |
+| Temporary reveal | Reveals for a configurable duration, then re-blurs automatically |
+| Emergency shortcut | `Ctrl+Shift+P` (`Cmd+Shift+P` on macOS) |
+| Quick Lock | One-click full-screen privacy overlay |
+| Max Privacy | Enables every protection at once |
+| Focus-loss privacy | Optional blur when the window loses focus |
+| Emergency overlay | Full-screen, modal, dismissible by click, `Esc`, or the shortcut |
+
+Reveal operates on a **logical group**: hovering a message reveals its text, media, reply preview and reactions together, and re-blurs them together.
+
+### Product
+
+| Feature | Detail |
+|---|---|
+| Popup controls | Primary toggles, reveal mode, blur intensity, Quick Lock, Max Privacy |
+| Options page | Full settings across seven sections |
+| Onboarding | First-run explanation of what the extension does and does not do |
+| Themes | Light / dark / system |
+| Local persistence | Settings stored in `chrome.storage.local` only |
+| Live settings updates | Toggle changes apply to the open page immediately — no reload, no polling |
+| Dynamic content | `MutationObserver` catches messages, avatars and media as they render |
+
+---
+
+## How it works
 
 ```
-src/
-  manifest.json          MV3 manifest
-  shared/
-    types.ts             All shared TypeScript types and DEFAULT_SETTINGS
-    storage.ts           chrome.storage.local read/write/patch/reset
-  content/
-    index.ts             Content script entry point (site detection, MutationObserver, storage listener)
-    privacy-engine.ts    Generic CSS-based blur/hide engine (no site knowledge)
-    dom-processor.ts     Site adapter → privacy engine bridge (logical regions, owner dedup)
-    sites/
-      types.ts           SiteAdapter contract (selectors, resolvers, exclusions, match mode)
-      detect.ts          Hostname → adapter detection
-      whatsapp/          WhatsApp Web adapter
-        index.ts           target wiring (match modes, resolvers, exclusions)
-        selectors.ts       stable exact selector paths (via ../selectors.ts)
-        dom.ts             read-only signal helpers (hints, zones, shape)
-        avatar-resolver.ts layered profile-photo detection
-        media-classifier.ts image/video/GIF/sticker classification
-      instagram/         Instagram adapter (selectors, structural resolvers)
-    selectors.ts         WhatsApp Web selector table (used by the WhatsApp adapter)
-    query.ts             Subtree/union/malformed-selector-safe query helpers
-    overlay.ts           Full-screen privacy overlay
-  background/
-    service-worker.ts    MV3 service worker (install, action click, message relay)
-  popup/
-    App.tsx              Popup React component
-    popup.css
-  options/
-    Options.tsx          Settings page React component
-    options.css
-  onboarding/
-    index.tsx            Onboarding React component
-    onboarding.css
-  icons/                 SVG + PNG icons (16/32/48/128px)
-scripts/
-  validate-extension.mjs Manifest/icon/permission/bundle validation
-  whatsapp-live-diagnostic.js  Read-only console diagnostic (dev tool, never bundled)
+Browser page
+      ↓
+Content Script
+      ↓
+Site Adapter
+      ↓
+Candidate Detection
+      ↓
+Category Classification
+      ↓
+Ownership / Group Resolution
+      ↓
+Local Privacy Engine
+      ↓
+Blur / Hide
+      ↓
+Reveal Controller
 ```
 
-The privacy engine (`privacy-engine.ts`) knows nothing about any particular site. It receives elements and applies CSS attributes. Each supported site has an adapter under `content/sites/` that maps that site's structure to the engine: which selectors target which privacy category, and which DOM nodes form one logical reveal group. The DOM processor (`dom-processor.ts`) is the shared bridge. Adding or fixing site-specific behaviour means editing only that site's adapter (for WhatsApp, `src/content/selectors.ts` plus `sites/whatsapp/`).
+**Site adapters.** All site-specific knowledge lives in `src/content/sites/`. The privacy engine and DOM processor are site-agnostic; they receive a list of elements and never inspect a selector themselves. Adding support for a new site means adding an adapter, not editing the engine.
 
-### How content is identified
+**Layered detection.** A target supplies exact selectors, an optional structural resolver, and an optional exclusion list. The resolver survives renamed markup because it does not depend on any single attribute — see [Why layered detection?](#why-layered-detection).
 
-Detection is layered, and no single layer is load-bearing:
+**Category classification.** Every element is assigned exactly one privacy category (`message`, `name`, `photo`, `image`, `video`, `gif-sticker`, …). Classification is a pure function of the element, so two categories cannot claim the same node — which is what keeps the toggles independent.
 
-1. **Exact selectors** — stable `data-testid`/ARIA/attribute paths from `selectors.ts`
-2. **Resolvers** — structural detection that survives renamed testids: explicit hints (testid/class/alt/aria/media URL) → structural area (chat pane, header, message bubble, participant row) → visual shape (circular clipping, square aspect, avatar-sized box)
-3. **Media classification** — one pure function decides whether a media element is an image, video, GIF or sticker, so the four toggles are mutually exclusive by construction
-4. **Exclusions** — hard rules ruling out pickers, dialogs, the chat list and page chrome before any positive signal
-5. **Fail-safe** — when a signal cannot be determined (no layout, no `src`, malformed selector) it counts as *absent*. Absence can only stop a candidate from being produced, never add one: low confidence means **no blur**, never a wrong blur.
+**Ownership and groups.** A logical region (a message bubble, a chat header, a chat-list row) may contain many classified elements. The processor resolves exactly one **owner** per region and attaches a reveal group to it, so CSS `filter: blur()` is never applied twice to nested elements — stacked filters are visually irreversible and would make reveal impossible.
 
-Every generic `<img>`/`<video>`/`<canvas>` sweep is avoided; a media element is only ever claimed when positive evidence identifies it. WhatsApp rotates auto-generated class names and testids regularly, so the selector table is a starting point rather than the whole answer — this is why layers 2–5 exist.
+**MutationObserver.** New nodes and `src` attribute changes are batched and processed against the *current* settings. There is no full-document rescan per mutation and no polling.
+
+**Local privacy engine.** Protection is a single injected `<style>` tag plus `data-wnu-*` attributes. Reveal state is an attribute too, so revealing is a style recalculation rather than a re-render.
+
+### WhatsApp-specific architecture
+
+| Module | Responsibility |
+|---|---|
+| `src/content/sites/whatsapp/index.ts` | Target wiring: match modes, resolvers, exclusions |
+| `src/content/sites/whatsapp/dom.ts` | Read-only DOM signal helpers and zone/token constants |
+| `src/content/sites/whatsapp/avatar-resolver.ts` | Layered profile-photo detection |
+| `src/content/sites/whatsapp/media-classifier.ts` | image / video / GIF / sticker classification |
+| `src/content/selectors.ts` | Stable exact selector paths |
+
+Detection relies on **structural context**, **conservative heuristics**, and **hard exclusions** — the GIF picker, sticker picker, emoji picker, dialogs and the chat list are ruled out before any positive signal is considered.
 
 ---
 
-## Installation (development)
+## Why layered detection?
 
-```bash
-git clone https://github.com/skandachandrashekhar335-wq/whatsapp-privacy-enhacer.git
-cd whatsapp-privacy-enhacer
-npm install
-npm run build
-```
+WhatsApp Web's DOM is not a stable public API. It is auto-generated, it changes without notice, and `data-testid` values are routinely renamed. A selector table alone is therefore a single point of failure: if one testid moves, the element is not mis-detected, it is simply *never found* — and never blurred.
 
-Then in Chrome/Edge/Brave:
-1. Go to `chrome://extensions`
-2. Enable Developer mode
-3. Click "Load unpacked"
-4. Select the `dist/` folder
+That was a real failure mode for this project. Profile photos, GIFs and stickers could be missed entirely while messages kept working, because a single stale selector silently disabled a whole category.
+
+Detection is therefore layered, and each layer is independent positive evidence:
+
+1. **Exact selectors** — stable `data-testid`/ARIA/attribute paths
+2. **Attribute hints** — testid, class, `alt`, `aria-label`, media URL, on the element or a wrapping container
+3. **Structural context** — chat pane, conversation header, message bubble, participant/list row
+4. **Media characteristics** — circular clipping, square aspect, avatar-sized box, looping control-less video, canvas
+5. **Category classification** — one pure function decides image vs video vs GIF vs sticker
+6. **Conservative heuristics** — a rule only fires on positive evidence; anything ambiguous is rejected
+7. **Hard exclusions** — picker tiles, dialogs and page chrome are removed before evaluation
+
+When a layer cannot produce enough evidence — no `src`, no layout, an unknown structure, a malformed selector — it counts as **absent**. Absence can only stop an element from being claimed; it can never add one.
+
+The consequence is deliberate: **low confidence means no blur, never a wrong blur.** A markup change shows up as visibly unblurred content you can report, rather than a WhatsApp logo, icon, or picker tile you did not ask to hide.
 
 ---
 
-## Development
+## Tech stack
 
-```bash
-npm run dev          # webpack watch mode
-npm run typecheck    # TypeScript type check
-npm run lint         # ESLint
-npm run test         # Vitest (259 tests)
-npm run build        # Production build → dist/
-npm run validate:extension   # manifest, icons, permissions, bundle checks
-```
+| Technology | Role |
+|---|---|
+| TypeScript | `strict` mode throughout, `noUnusedLocals` / `noUnusedParameters` |
+| React | Popup, options page, onboarding UI |
+| Webpack | Bundling and production build |
+| Manifest V3 | Extension manifest and service worker |
+| Chrome/Edge extension APIs | `storage`, `tabs`, content scripts, runtime messaging |
+| Vitest + jsdom | Automated test suite |
+| CSS | Blur and hide effects via injected stylesheet |
+| MutationObserver | Dynamic content detection |
+| Chrome Storage API | Local settings persistence |
+
+Runtime dependencies: `react`, `react-dom`. Nothing else.
 
 ---
 
 ## Testing
 
-The test suite covers:
-- Settings defaults, storage read/write/patch/reset, schema migration, error handling
-- Privacy engine: style injection, blur clamping, element protection/unprotection, reveal listeners (hover/click/timed), timer management
-- Logical reveal groups: one owner per region, nested content revealing together, no stacked CSS filters
-- DOM processor: applyProtections, removeProtections, processNewNodes, unprotectByType, idempotency
-- Site detection: hostname → adapter, unsupported hosts fall back to no-op
-- Settings propagation: storage.onChanged re-processes the live DOM without reload, duplicate listeners, coalesced updates
-- WhatsApp profile photos: layered detection (hints → structural area → circular/chat-row/square shape), false-positive rejection, lazy-loaded and changed `src`, dynamically inserted avatars
-- WhatsApp GIFs and stickers: classification across representations (testid, renamed testid, wrapper label, canvas, looping video, marker attribute), false-positive rejection (real videos, photo messages, emoji, picker tiles, chat-list art), category independence
-- WhatsApp ownership and reveal: one blur owner per region, wrapper/image pairs collapsed to a single layer, the whole message revealed together
-- MutationObserver: the real observer started by `init()` — late-inserted messages/GIFs/stickers/avatars, `src`-attribute re-evaluation, scoped processing with no document-wide rescan, no duplicate protection, no observer loop
-- Instagram adapter: selector categories, comment/caption structural resolvers, toggle respect, no generic-element blurring
-- Selectors: queryAll/queryOne fallback chains, malformed selector handling, subtree scoping
-- Overlay: show/hide/idempotency/ARIA
+**259 tests across 14 test files.** Zero tests deleted or weakened during development.
 
-Tests run in jsdom with a chrome API mock. They do not depend on a live WhatsApp or Instagram session.
+| Area | File | Tests |
+|---|---|---:|
+| WhatsApp media classification | `whatsapp-media.test.ts` | 43 |
+| WhatsApp avatar detection | `whatsapp-photos.test.ts` | 33 |
+| Privacy engine | `privacy-engine.test.ts` | 23 |
+| Profile photos | `profile-photos.test.ts` | 22 |
+| Instagram adapter | `instagram.test.ts` | 21 |
+| Site detection | `site-detection.test.ts` | 17 |
+| Overlay | `overlay.test.ts` | 16 |
+| DOM ownership | `dom-processor.test.ts` | 16 |
+| Settings propagation | `settings-sync.test.ts` | 16 |
+| Mutation handling | `mutation-observer.test.ts` | 14 |
+| Logical reveal groups | `logical-groups.test.ts` | 12 |
+| Storage | `storage.test.ts` | 9 |
+| Types and defaults | `types.test.ts` | 9 |
+| Selector helpers | `selectors.test.ts` | 8 |
 
-See [docs/testing.md](docs/testing.md) for what is covered and what isn't.
+### Validation
+
+All commands currently pass:
+
+```bash
+npm ci
+npm run typecheck
+npm run lint
+npm test
+npm run build
+npm run validate:extension
+```
+
+`npm run validate:extension` checks the manifest, icon integrity, required permissions, absence of broad host access, and the built bundle in `dist/`.
+
+Tests run in jsdom against fixtures modelled on the current site markup. They do not require a live WhatsApp or Instagram session. See [`docs/testing.md`](docs/testing.md).
 
 ---
 
-## Browser support
+## Verification
 
-| Browser | Status |
-|---------|--------|
-| Chrome 120+ | Works (primary target) |
-| Edge 120+ | Works (Chromium-based, same codebase) |
-| Brave | Works (Chromium-based) |
-| Firefox | Not tested — MV3 support in Firefox differs; may work with minor adjustments |
+The v1.0.0 release was **manually tested in Microsoft Edge with a real, logged-in WhatsApp Web session.**
 
-See [docs/browser-support.md](docs/browser-support.md) for details.
+Verified in that session:
+
+- Profile photos blur (chat list, conversation header, group info)
+- GIFs blur
+- Stickers blur
+- Messages blur
+- Contact and group names blur
+- Chat-list previews blur
+- Images and videos blur
+- Dynamic content (newly arriving messages and media) is protected
+- Toggles apply live without a page reload
+- Reveal behaviour works
+
+Automated checks also pass: 259/259 tests, TypeScript, ESLint, production build, extension validation.
+
+**Firefox has not been tested.** No Firefox support is claimed.
 
 ---
 
-## Privacy
+## Installation
 
-This extension:
-- processes everything locally in your browser
-- stores only your settings in `chrome.storage.local`
-- does not collect, store, or transmit content; privacy transformations are applied locally to content already rendered by the website
-- never requests your WhatsApp or Instagram credentials
-- never intercepts network traffic
-- uses the minimum permissions required
+### Microsoft Edge (or any Chromium browser)
 
-See [PRIVACY.md](PRIVACY.md) for the full privacy model.
+```bash
+git clone https://github.com/skandachandrashekhar335-wq/whatsapp-privacy-enhacer.git
+cd whatsapp-privacy-enhacer
+npm ci
+npm run build
+```
+
+1. Open `edge://extensions`
+2. Enable **Developer mode**
+3. Click **Load unpacked**
+4. Select the `dist/` folder
+5. Open `https://web.whatsapp.com`
+
+### Google Chrome
+
+1. Open `chrome://extensions`
+2. Enable **Developer mode**
+3. Click **Load unpacked**
+4. Select the `dist/` folder
+5. Open `https://web.whatsapp.com`
+
+Firefox installation is not documented because Firefox has not been verified.
+
+---
+
+## Project structure
+
+```
+src/
+  manifest.json              MV3 manifest
+  shared/
+    types.ts                 Shared types and DEFAULT_SETTINGS
+    storage.ts               chrome.storage.local read/write/patch/reset
+  content/
+    index.ts                 Entry point: site detection, observer, storage listener
+    dom-processor.ts         Adapter → engine bridge, ownership and reveal groups
+    privacy-engine.ts        Site-agnostic CSS blur/hide engine
+    query.ts                 Malformed-selector-safe query helpers
+    selectors.ts             WhatsApp selector table
+    overlay.ts               Emergency full-screen overlay
+    sites/
+      types.ts               SiteAdapter contract
+      detect.ts              Hostname → adapter
+      whatsapp/              WhatsApp adapter (dom, avatar-resolver, media-classifier)
+      instagram/             Instagram adapter (selectors, structural resolvers)
+  background/
+    service-worker.ts        MV3 service worker
+  popup/                     Popup UI (React)
+  options/                   Settings page (React)
+  onboarding/                Onboarding UI (React)
+  icons/                     SVG + generated PNG icons
+scripts/
+  validate-extension.mjs     Manifest/icon/permission/bundle validation
+  whatsapp-live-diagnostic.js  Read-only console diagnostic (dev tool, never bundled)
+tests/                       14 test files
+docs/                        Architecture, development, privacy, security, limitations
+```
+
+| Directory | Purpose |
+|---|---|
+| `src/content` | Everything injected into the page: detection, ownership, protection, reveal |
+| `src/content/sites/whatsapp` | WhatsApp-specific detection — resolvers, classifiers, DOM signals |
+| `src/content/sites/instagram` | Instagram-specific selectors and structural resolvers |
+| `src/popup` | Quick-access controls |
+| `src/options` | Full settings page |
+| `src/background` | Service worker: install handling, action click, message relay |
+| `src/content/overlay.ts` | Emergency full-screen privacy overlay |
+| `tests` | Automated regression suite |
+| `docs` | Architecture, development, privacy, security, limitations |
+
+---
+
+## Privacy & security
+
+| | |
+|---|---|
+| Backend | None — the extension has no server |
+| Telemetry | None |
+| Analytics | None |
+| Message database | None |
+| Credential collection | None — it never touches a login form |
+| Network interception | None — no `webRequest` permission |
+| WhatsApp/Instagram API | None — it does not use them |
+| Message transmission | None — no code path sends page content anywhere |
+
+The extension operates only on content already rendered in the browser. It stores a small settings object in `chrome.storage.local` and nothing else.
+
+- Privacy model: [`docs/privacy.md`](docs/privacy.md)
+- Security and threat model: [`docs/security.md`](docs/security.md)
+- Permissions: `storage`, `tabs`, `https://web.whatsapp.com/*`, `https://www.instagram.com/*`
 
 ---
 
 ## Limitations
 
-WhatsApp Web uses auto-generated CSS class names that change without notice. The extension uses stable `data-testid` attributes and ARIA patterns where available, with class-based fallbacks. Some elements may not be caught when WhatsApp updates its DOM.
+- WhatsApp and Instagram change their DOM without notice. Site support depends on what can be safely identified in that DOM, and adapter updates may be required after a redesign.
+- If a structure cannot be identified with confidence, content is left visible rather than wrongly blurred.
+- Instagram **direct messages are not implemented**.
+- Instagram **Stories viewer is not implemented**.
+- Instagram **Reels viewer is not implemented**.
+- Logged-out Instagram feed pages redirect to login and were not verified.
+- Firefox has not been tested.
+- The extension cannot prevent OS-level screenshots or screen recording.
+- GIFs continue to load behind the blur; CSS cannot pause them.
 
-Specifically:
-- Profile photos, GIFs and stickers are detected in layers (stable selectors → hint attributes → structural area → visual shape → media classification). When none of those layers produces enough evidence the element is left visible, so a WhatsApp change shows *unblurred* content rather than the wrong content being blurred
-- Last-seen timestamps are hidden via the same selector as online status; they cannot be targeted independently with current selectors
-- Document previews use a testid that may not always be present
-- GIF autoplay cannot be stopped — the blur prevents seeing them, but they still load
-- The extension works on the visible DOM only; it cannot affect WhatsApp's end-to-end encryption or server-side data
-- Selectors and structural resolvers are validated against fixtures shaped like the current WhatsApp/Instagram DOM, not against a live session on every release; WhatsApp and Instagram can and do change their markup without notice
-
-Instagram limitations:
-- Direct messages, the stories viewer, and the in-app reels viewer are behind login and are not implemented — no claims are made about them
-- Profile photo detection relies on `alt` text ("…'s profile picture"); non-English UI locales may not match, in which case the photo is left visible rather than wrongly blurred
-- Comment and caption detection uses structural resolvers anchored on permalink URL shapes; if Instagram changes that structure the resolver returns nothing (no blur) rather than guessing
-- Logged-out feed pages redirect to the login screen, so feed-specific behaviour could not be verified
-
-See [docs/limitations.md](docs/limitations.md) for the full list.
-
----
-
-## Permissions
-
-```json
-"permissions": ["storage", "tabs"],
-"host_permissions": ["https://web.whatsapp.com/*", "https://www.instagram.com/*"]
-```
-
-`storage` — to save settings. `tabs` — for the popup to detect if the active tab is a supported site and to send messages to the content script. No broad host access; only `web.whatsapp.com` and `www.instagram.com`.
+Full list: [`docs/limitations.md`](docs/limitations.md)
 
 ---
 
 ## Roadmap
 
-- Real PNG icons (currently minimal placeholders)
-- Per-chat privacy settings
-- Keyboard shortcut customisation
-- Firefox MV3 compatibility testing
-- Screenshot protection (OS-level, out of scope for a browser extension)
+Possible future directions, not commitments:
+
+- Stronger DOM resilience as sites evolve
+- Broader browser verification
+- Improved site adapters
+- More automated browser-level integration tests
+- Additional privacy controls
+
+---
+
+## Engineering highlights
+
+**Resilient DOM detection.** WhatsApp's markup is not a stable API, so detection is layered rather than selector-bound: exact selectors → attribute hints → structural context → shape → classification, with hard exclusions applied before any positive signal. This is the difference between a stale selector disabling a category silently and a redesign degrading gracefully.
+
+**Media classification.** One pure function decides whether an element is an image, video, GIF or sticker. Because classification happens *before* targeting, categories are mutually exclusive by construction — which is what makes twelve independent toggles safe on a DOM where a GIF, a video and a photo can share identical structure.
+
+**Profile-avatar detection.** Avatars are identified by context plus shape (circular clipping, chat-list row membership, avatar-sized box), never by blanket-matching every image. A shape signal alone is never sufficient.
+
+**Nested DOM ownership.** CSS `filter` stacks, so a blurred parent cannot visually un-blur its child. The processor resolves exactly one owner per logical region and records explicit ownership rules, eliminating nested blur while keeping every category independently toggleable.
+
+**Mutation-aware processing.** Insertions and `src` changes are batched and processed against current settings, scoped to the added subtree — no document-wide rescan per mutation, no polling, no observer loop.
+
+**Live settings propagation.** `chrome.storage.onChanged` re-applies protection to the already-open page. Updates are coalesced per tick and identical payloads deduplicated, so a rapid toggle sequence produces exactly one re-apply.
+
+**Category isolation.** Toggling one category off removes exactly that category's protection and never un-blurs another, including in the ownership map.
+
+**Reveal grouping.** Reveal is registered on the logical group root, so nested content reveals and re-blurs as a unit.
+
+**Minimal permissions.** `storage` and `tabs`, plus host access limited to the two supported origins. No `webRequest`, no `activeTab` broadening, no `<all_urls>`.
+
+**Local-first architecture.** There is no backend to trust. Privacy transformations are applied to the local DOM only.
+
+**Automated regression testing.** 259 tests across 14 files cover the engine, both site adapters, ownership, mutation handling, settings propagation, reveal behaviour and the overlay — with zero tests deleted or weakened.
+
+---
+
+## Documentation
+
+| Document | Contents |
+|---|---|
+| [`docs/architecture.md`](docs/architecture.md) | Extension architecture, content script lifecycle, detection pipeline, ownership and reveal models |
+| [`docs/development.md`](docs/development.md) | Setup, commands, build, debugging, diagnostic script |
+| [`docs/privacy.md`](docs/privacy.md) | Privacy model in precise technical terms |
+| [`docs/security.md`](docs/security.md) | Permissions, threat model, limitations |
+| [`docs/limitations.md`](docs/limitations.md) | Known limitations and site compatibility |
+| [`docs/testing.md`](docs/testing.md) | Test coverage and manual verification checklists |
+| [`docs/browser-support.md`](docs/browser-support.md) | Browser support notes |
+| [`CHANGELOG.md`](CHANGELOG.md) | Release history |
 
 ---
 
 ## License
 
-MIT
+No license file has been chosen for this repository yet. **A license decision is still required** before this project can be reused or redistributed by others. Until one is added, all rights are reserved by the author.

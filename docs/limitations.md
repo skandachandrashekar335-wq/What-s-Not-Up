@@ -2,6 +2,21 @@
 
 ---
 
+## Browser and site compatibility
+
+| Target | Status |
+|---|---|
+| WhatsApp Web (`web.whatsapp.com`) | Supported. Final v1.0.0 release manually verified in Microsoft Edge with a logged-in session. |
+| Instagram — profile photos, grid/post media, video/reels, captions, comments | Supported on public/logged-out profile and post/permalink pages. |
+| Instagram — direct messages | **Not implemented.** |
+| Instagram — Stories viewer | **Not implemented.** |
+| Instagram — Reels viewer | **Not implemented.** |
+| Chrome / Edge / Brave (Chromium) | Same codebase; Edge is the verified browser. |
+| Firefox | **Not tested.** MV3 support differs; no support is claimed. |
+| WhatsApp desktop/mobile apps, WhatsApp Business | Out of scope — the extension only runs in a browser on the two supported origins. |
+
+---
+
 ## Selector fragility
 
 WhatsApp Web is a React-based SPA that uses auto-generated CSS class names. These change with every deployment. The extension uses `data-testid` attributes and ARIA patterns where available, but some selectors include class-based fallbacks that may break.
@@ -32,11 +47,13 @@ When a layer cannot produce enough evidence (no `src`, no layout, an unknown str
 
 **Verified automatically** — `npm run typecheck`, `npm run lint`, `npm test` (259 tests), `npm run build` and `npm run validate:extension` all pass. The suites exercise the layered profile-photo resolver, the media classifier, ownership/reveal grouping, live settings propagation and the real MutationObserver against fixtures modelled on the current WhatsApp and Instagram markup.
 
-**Not verified for this release: a live WhatsApp Web session.** The tooling available while preparing this release could not reach a logged-in session, so no live WhatsApp result is claimed. Profile-photo, GIF and sticker detection must be confirmed with the manual checklist in [testing.md](testing.md). If a surface still does not blur there, `scripts/whatsapp-live-diagnostic.js` (read-only console script, see [development.md](development.md)) reports which stage failed: discovery, ownership, or CSS.
+**Manually verified in a real session** — the final release was tested in **Microsoft Edge against a logged-in WhatsApp Web session**, confirming profile photos, GIFs, stickers, messages, contact/group names, chat-list previews, images and videos, dynamically arriving content, live toggles applied without a reload, and reveal behaviour.
 
-**Instagram** selectors and structural resolvers were checked against logged-out public profile and post/permalink pages during development. Logged-out feed, DMs, the stories viewer and the reels viewer redirect to login and were not verified — and are not implemented.
+**Instagram** selectors and structural resolvers were checked against logged-out public profile and post/permalink pages during development. Logged-out feed, DMs, the stories viewer and the reels viewer redirect to login, are **not implemented**, and were not verified.
 
 **Firefox** has not been tested.
+
+Because WhatsApp changes its markup without notice, the Edge result is a point-in-time verification of this release — not a guarantee against future WhatsApp updates. If a surface stops blurring after a site update, `scripts/whatsapp-live-diagnostic.js` (read-only console script, see [development.md](development.md)) reports which stage failed: discovery, ownership, or CSS.
 
 ---
 
