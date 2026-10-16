@@ -202,6 +202,7 @@ export const AVATAR_CDN_TOKENS = ['pps.whatsapp.net', 'static.whatsapp.net'] as 
 
 export const GIF_TOKENS = ['gif', 'animated'] as const;
 export const STICKER_TOKENS = ['sticker'] as const;
+export const VIDEO_TOKENS = ['video-thumb', 'media-video', 'video-player', 'video-preview', 'video'] as const;
 
 /** True when the element (or a near wrapper) is explicitly labelled an avatar. */
 export function hasAvatarHint(el: Element): boolean {

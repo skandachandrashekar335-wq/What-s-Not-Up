@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { PrivacySettings, ExtensionMessage, RevealMode } from '../shared/types';
+import { PrivacySettings, ExtensionMessage, RevealMode, PrivacyProfile } from '../shared/types';
 import { loadSettings, patchSettings } from '../shared/storage';
 import { siteIdForUrl, SiteId } from '../content/sites/detect';
 
@@ -36,6 +36,13 @@ const SITE_TOGGLE_LABELS: Record<SiteId, { key: keyof PrivacySettings; label: st
 const SITE_NAMES: Record<SiteId, string> = {
   whatsapp: 'WhatsApp Web',
   instagram: 'Instagram',
+};
+
+const PROFILE_LABELS: Record<PrivacyProfile, string> = {
+  custom: 'Custom',
+  normal: 'Normal',
+  balanced: 'Balanced',
+  maximum: 'Maximum',
 };
 
 export default function App() {
@@ -81,8 +88,25 @@ export default function App() {
     window.close();
   };
 
+  const handlePanicLock = () => {
+    if (activeTab?.id && isSupportedSite) {
+      chrome.tabs.sendMessage(activeTab.id, { type: 'PANIC_LOCK' } satisfies ExtensionMessage).catch(() => {});
+    }
+    // Update local state optimistically.
+    update({ panicLocked: true });
+    window.close();
+  };
+
+  const handlePanicUnlock = () => {
+    if (activeTab?.id && isSupportedSite) {
+      chrome.tabs.sendMessage(activeTab.id, { type: 'PANIC_UNLOCK' } satisfies ExtensionMessage).catch(() => {});
+    }
+    update({ panicLocked: false });
+  };
+
   const handleMaxPrivacy = () => update({
     privacyEnabled: true,
+    privacyProfile: 'maximum',
     blurMessages: true,
     blurContactNames: true,
     blurProfilePhotos: true,
@@ -149,7 +173,27 @@ export default function App() {
             <div className={`privacy-status ${settings.privacyEnabled ? 'active' : ''}`}>
               {settings.privacyEnabled ? '🔒 Content is protected' : '🔓 Content is visible'}
             </div>
+            {settings.privacyProfile !== 'custom' && (
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                Profile: {PROFILE_LABELS[settings.privacyProfile]}
+              </div>
+            )}
           </section>
+
+          {/* Panic Lock status banner */}
+          {settings.panicLocked && (
+            <section className="quick-actions" style={{ background: 'var(--color-danger, #c0392b)', borderRadius: 8, margin: '0 12px', padding: '10px 14px' }}>
+              <span style={{ color: '#fff', fontWeight: 600, fontSize: 13 }}>🔐 Panic Lock is active</span>
+              <button
+                className="btn"
+                style={{ background: '#fff', color: 'var(--color-danger, #c0392b)', fontWeight: 600, fontSize: 12, padding: '4px 12px' }}
+                onClick={handlePanicUnlock}
+                aria-label="Deactivate Panic Lock"
+              >
+                Unlock
+              </button>
+            </section>
+          )}
 
           {/* Quick actions */}
           <section className="quick-actions">
@@ -160,13 +204,23 @@ export default function App() {
             >
               🔒 Quick Lock
             </button>
-            <button
-              className="btn"
-              onClick={handleMaxPrivacy}
-              title="Enable all protections"
-            >
-              🛡️ Max Privacy
-            </button>
+            {settings.panicLockEnabled && !settings.panicLocked ? (
+              <button
+                className="btn"
+                onClick={handlePanicLock}
+                title="Panic Lock — force-protect all content immediately"
+              >
+                🔐 Panic Lock
+              </button>
+            ) : !settings.panicLocked ? (
+              <button
+                className="btn"
+                onClick={handleMaxPrivacy}
+                title="Enable all protections"
+              >
+                🛡️ Max Privacy
+              </button>
+            ) : null}
           </section>
 
           {/* Protection toggles (site-aware) */}
@@ -180,7 +234,7 @@ export default function App() {
                 label={label}
                 checked={Boolean(settings[key])}
                 disabled={!settings.privacyEnabled}
-                onChange={(v) => update({ [key]: v } as Partial<PrivacySettings>)}
+                onChange={(v) => update({ [key]: v, privacyProfile: 'custom' } as Partial<PrivacySettings>)}
               />
             ))}
           </section>
@@ -244,7 +298,7 @@ export default function App() {
               Full settings
             </a>
             {' · '}
-            <span>Ctrl+Shift+P to lock</span>
+            <span>Ctrl+Shift+L to lock</span>
           </footer>
         </>
       )}

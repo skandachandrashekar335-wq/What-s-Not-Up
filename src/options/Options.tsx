@@ -1,13 +1,28 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { PrivacySettings, ThemeMode, RevealMode } from '../shared/types';
+import {
+  PrivacySettings,
+  ThemeMode,
+  RevealMode,
+  PrivacyProfile,
+  ShortcutDescriptor,
+  DEFAULT_LOCK_SHORTCUT,
+  DEFAULT_UNLOCK_SHORTCUT,
+} from '../shared/types';
 import { loadSettings, patchSettings, resetSettings } from '../shared/storage';
 import { SUPPORTED_HOST_PATTERNS } from '../content/sites/detect';
+import {
+  validateShortcut,
+  shortcutLabel,
+  shortcutsConflict,
+} from '../content/panic-lock';
 
-type Section = 'privacy' | 'content' | 'reveal' | 'focus' | 'appearance' | 'advanced';
+type Section = 'privacy' | 'profiles' | 'content' | 'panic-lock' | 'reveal' | 'focus' | 'appearance' | 'advanced';
 
 const NAV: { id: Section; label: string }[] = [
   { id: 'privacy', label: 'Privacy' },
+  { id: 'profiles', label: 'Privacy Profiles' },
   { id: 'content', label: 'Content Protection' },
+  { id: 'panic-lock', label: 'Panic Lock' },
   { id: 'reveal', label: 'Reveal Behaviour' },
   { id: 'focus', label: 'Focus / Window' },
   { id: 'appearance', label: 'Appearance' },
@@ -91,7 +106,9 @@ export default function Options() {
       {/* Content */}
       <main className="main">
         {section === 'privacy' && <PrivacySection settings={settings} onUpdate={update} />}
+        {section === 'profiles' && <ProfilesSection settings={settings} onUpdate={update} />}
         {section === 'content' && <ContentSection settings={settings} onUpdate={update} />}
+        {section === 'panic-lock' && <PanicLockSection settings={settings} onUpdate={update} />}
         {section === 'reveal' && <RevealSection settings={settings} onUpdate={update} />}
         {section === 'focus' && <FocusSection settings={settings} onUpdate={update} />}
         {section === 'appearance' && <AppearanceSection settings={settings} onUpdate={update} />}
@@ -308,6 +325,289 @@ function AppearanceSection({ settings, onUpdate }: SectionProps) {
             </select>
           }
         />
+      </div>
+    </>
+  );
+}
+
+// ─── Privacy Profiles ─────────────────────────────────────────────────────────
+
+const PROFILE_PRESETS: Record<PrivacyProfile, Partial<PrivacySettings>> = {
+  custom: {},
+  normal: {
+    blurMessages: true,
+    blurContactNames: true,
+    blurProfilePhotos: true,
+    blurImages: false,
+    blurVideos: false,
+    blurGifsStickers: false,
+    blurDocumentPreviews: false,
+    blurLinkPreviews: false,
+    blurChatListPreviews: true,
+    blurChatHeader: false,
+    hideOnlineStatus: false,
+    hideTypingIndicator: false,
+    blurCaptions: false,
+    blurComments: false,
+  },
+  balanced: {
+    blurMessages: true,
+    blurContactNames: true,
+    blurProfilePhotos: true,
+    blurImages: true,
+    blurVideos: true,
+    blurGifsStickers: false,
+    blurDocumentPreviews: false,
+    blurLinkPreviews: true,
+    blurChatListPreviews: true,
+    blurChatHeader: true,
+    hideOnlineStatus: true,
+    hideTypingIndicator: false,
+    blurCaptions: true,
+    blurComments: false,
+  },
+  maximum: {
+    blurMessages: true,
+    blurContactNames: true,
+    blurProfilePhotos: true,
+    blurImages: true,
+    blurVideos: true,
+    blurGifsStickers: true,
+    blurDocumentPreviews: true,
+    blurLinkPreviews: true,
+    blurChatListPreviews: true,
+    blurChatHeader: true,
+    hideOnlineStatus: true,
+    hideTypingIndicator: true,
+    blurCaptions: true,
+    blurComments: true,
+  },
+};
+
+const PROFILE_DESCRIPTIONS: Record<PrivacyProfile, string> = {
+  custom: 'You have manually adjusted the toggles. No preset is active.',
+  normal: 'Protects message text, names, and chat list previews. Media and status indicators remain visible.',
+  balanced: 'Protects messages, names, previews, images, videos, link cards and online status. A practical default for most situations.',
+  maximum: 'Protects the broadest supported set of visible content. Note: Panic Lock is a visual convenience only — it does not prevent screenshots or protect against other extensions.',
+};
+
+function ProfilesSection({ settings, onUpdate }: SectionProps) {
+  const apply = (profile: PrivacyProfile) => {
+    if (profile === 'custom') return; // custom is only set by manual toggle changes
+    onUpdate({ ...PROFILE_PRESETS[profile], privacyProfile: profile });
+  };
+
+  return (
+    <>
+      <h1 className="page-title">Privacy Profiles</h1>
+      <p className="page-desc">
+        Presets that configure multiple toggles at once. After selecting a preset you
+        can still fine-tune individual toggles — that switches the profile to&nbsp;Custom.
+      </p>
+
+      {(['normal', 'balanced', 'maximum'] as PrivacyProfile[]).map((profile) => {
+        const active = settings.privacyProfile === profile;
+        return (
+          <div
+            key={profile}
+            className={`card${active ? ' card-active' : ''}`}
+            style={{ cursor: 'pointer', outline: active ? '2px solid var(--color-accent)' : 'none' }}
+            onClick={() => apply(profile)}
+            role="button"
+            tabIndex={0}
+            aria-pressed={active}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') apply(profile); }}
+          >
+            <div className="card-title" style={{ textTransform: 'capitalize' }}>
+              {profile === 'normal' ? '🔵' : profile === 'balanced' ? '🟡' : '🔴'} {profile.charAt(0).toUpperCase() + profile.slice(1)}
+              {active && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--color-accent)' }}>Active</span>}
+            </div>
+            <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+              {PROFILE_DESCRIPTIONS[profile]}
+            </p>
+          </div>
+        );
+      })}
+
+      {settings.privacyProfile === 'custom' && (
+        <div className="card" style={{ padding: '12px 18px', fontSize: 13, color: 'var(--color-text-muted)' }}>
+          ✏️ <strong>Custom</strong> — {PROFILE_DESCRIPTIONS.custom}
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── Panic Lock ───────────────────────────────────────────────────────────────
+
+function ShortcutRecorder({
+  value,
+  onChange,
+  id,
+}: {
+  value: ShortcutDescriptor;
+  onChange: (s: ShortcutDescriptor) => void;
+  id: string;
+}) {
+  const [recording, setRecording] = useState(false);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Ignore lone modifier keys — wait for a printable key.
+    if (['Control', 'Meta', 'Alt', 'Shift'].includes(e.key)) return;
+    const next: ShortcutDescriptor = {
+      key: e.key,
+      ctrlKey: e.ctrlKey || e.metaKey,
+      metaKey: e.metaKey,
+      altKey: e.altKey,
+      shiftKey: e.shiftKey,
+    };
+    onChange(next);
+    setRecording(false);
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <kbd
+        id={id}
+        tabIndex={0}
+        style={{
+          display: 'inline-block',
+          padding: '4px 10px',
+          background: recording ? 'var(--color-accent)' : 'var(--color-surface-2, #333)',
+          color: recording ? '#fff' : 'var(--color-text)',
+          borderRadius: 4,
+          border: '1px solid var(--color-border)',
+          cursor: 'pointer',
+          fontSize: 13,
+          minWidth: 120,
+          textAlign: 'center',
+          outline: recording ? '2px solid var(--color-accent)' : 'none',
+        }}
+        onClick={() => setRecording(true)}
+        onBlur={() => setRecording(false)}
+        onKeyDown={recording ? handleKeyDown : undefined}
+        aria-label={recording ? 'Press desired key combination' : `Current shortcut: ${shortcutLabel(value)}`}
+      >
+        {recording ? 'Press keys…' : shortcutLabel(value)}
+      </kbd>
+      {recording && (
+        <button
+          style={{ fontSize: 12, background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer' }}
+          onClick={() => setRecording(false)}
+        >
+          Cancel
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PanicLockSection({ settings, onUpdate }: SectionProps) {
+  const lockValidation = validateShortcut(settings.lockShortcut);
+  const unlockValidation = validateShortcut(settings.unlockShortcut);
+  const conflict =
+    !settings.sameShortcutToggle &&
+    shortcutsConflict(settings.lockShortcut, settings.unlockShortcut);
+
+  const resetShortcuts = () => {
+    onUpdate({
+      lockShortcut: { ...DEFAULT_LOCK_SHORTCUT },
+      unlockShortcut: { ...DEFAULT_UNLOCK_SHORTCUT },
+      sameShortcutToggle: false,
+    });
+  };
+
+  return (
+    <>
+      <h1 className="page-title">Panic Lock</h1>
+      <p className="page-desc">
+        Instantly force-protect all enabled categories with a keyboard shortcut. The popup
+        always shows an <strong>Unlock</strong> button as a guaranteed recovery path.
+      </p>
+
+      <div className="card">
+        <SettingRow
+          label="Enable Panic Lock"
+          desc="Allow the Panic Lock shortcuts and the popup Panic Lock button."
+          control={
+            <Toggle
+              id="s-panic-enabled"
+              checked={settings.panicLockEnabled}
+              onChange={(v) => onUpdate({ panicLockEnabled: v })}
+            />
+          }
+        />
+      </div>
+
+      <div className="card" style={{ opacity: settings.panicLockEnabled ? 1 : 0.5, pointerEvents: settings.panicLockEnabled ? 'auto' : 'none' }}>
+        <div className="card-title">Shortcuts</div>
+
+        <SettingRow
+          label="Use the same shortcut to lock and unlock"
+          desc="When on, pressing the lock shortcut again unlocks. When off, separate shortcuts are used."
+          control={
+            <Toggle
+              id="s-same-shortcut"
+              checked={settings.sameShortcutToggle}
+              onChange={(v) => onUpdate({ sameShortcutToggle: v })}
+            />
+          }
+        />
+
+        <SettingRow
+          label="Lock shortcut"
+          desc={!lockValidation.valid ? `⚠️ ${lockValidation.reason}` : 'Click the shortcut to change it, then press the desired key combination.'}
+          control={
+            <ShortcutRecorder
+              id="lock-shortcut"
+              value={settings.lockShortcut}
+              onChange={(s) => onUpdate({ lockShortcut: s })}
+            />
+          }
+        />
+
+        {!settings.sameShortcutToggle && (
+          <SettingRow
+            label="Unlock shortcut"
+            desc={
+              conflict
+                ? '⚠️ Lock and unlock shortcuts are identical — set a different combination.'
+                : !unlockValidation.valid
+                ? `⚠️ ${unlockValidation.reason}`
+                : 'Shortcut used to leave the locked state.'
+            }
+            control={
+              <ShortcutRecorder
+                id="unlock-shortcut"
+                value={settings.unlockShortcut}
+                onChange={(s) => onUpdate({ unlockShortcut: s })}
+              />
+            }
+          />
+        )}
+
+        <div style={{ padding: '10px 18px' }}>
+          <button
+            className="btn-danger"
+            style={{ background: 'none', border: '1px solid var(--color-border)', color: 'var(--color-text)', fontSize: 12, padding: '4px 12px', borderRadius: 4, cursor: 'pointer' }}
+            onClick={resetShortcuts}
+          >
+            Restore default shortcuts
+          </button>
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: '14px 18px', fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
+        <p><strong>Browser limitations</strong></p>
+        <ul style={{ marginTop: 6, paddingLeft: 18 }}>
+          <li>Shortcuts only fire when the WhatsApp or Instagram tab is focused.</li>
+          <li>Some combinations are reserved by the browser (e.g. Ctrl+T, Ctrl+W) and cannot be used.</li>
+          <li>Global shortcuts across all apps require OS-level tools — extensions cannot register those.</li>
+          <li>The <strong>Unlock</strong> button in the popup always works as a fallback regardless of shortcut availability.</li>
+        </ul>
+        <p style={{ marginTop: 10 }}><strong>Privacy note:</strong> Panic Lock is a visual convenience, not encryption. It does not prevent screenshots, browser DevTools, or access by someone who already has physical access to your unlocked device.</p>
       </div>
     </>
   );

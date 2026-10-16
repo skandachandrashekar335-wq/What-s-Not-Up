@@ -2,6 +2,20 @@
 
 export type RevealMode = 'hover' | 'click' | 'temporary';
 export type ThemeMode = 'light' | 'dark' | 'system';
+export type PrivacyProfile = 'custom' | 'normal' | 'balanced' | 'maximum';
+
+/**
+ * A keyboard shortcut descriptor.
+ * `key` is the KeyboardEvent.key value (e.g. 'l', 'F1').
+ * Modifier flags indicate which modifier keys must be held.
+ */
+export interface ShortcutDescriptor {
+  key: string;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  altKey: boolean;
+  shiftKey: boolean;
+}
 
 export interface PrivacySettings {
   // Master switch
@@ -27,6 +41,23 @@ export interface PrivacySettings {
   blurCaptions: boolean;
   blurComments: boolean;
 
+  // Privacy profile (preset). 'custom' means the user manually adjusted toggles.
+  privacyProfile: PrivacyProfile;
+
+  // Panic Lock
+  panicLockEnabled: boolean;
+  /** Whether the page is currently in the panic-locked state. */
+  panicLocked: boolean;
+  /** Shortcut to enter panic lock. */
+  lockShortcut: ShortcutDescriptor;
+  /** Shortcut to leave panic lock (only used when sameShortcutToggle is false). */
+  unlockShortcut: ShortcutDescriptor;
+  /**
+   * When true, the lock shortcut toggles between locked and unlocked.
+   * When false, separate lock/unlock shortcuts are used.
+   */
+  sameShortcutToggle: boolean;
+
   // Reveal behaviour
   revealMode: RevealMode;
   temporaryRevealDurationMs: number; // milliseconds
@@ -43,6 +74,22 @@ export interface PrivacySettings {
   // Onboarding
   onboardingComplete: boolean;
 }
+
+export const DEFAULT_LOCK_SHORTCUT: ShortcutDescriptor = {
+  key: 'l',
+  ctrlKey: true,
+  metaKey: false,
+  altKey: false,
+  shiftKey: true,
+};
+
+export const DEFAULT_UNLOCK_SHORTCUT: ShortcutDescriptor = {
+  key: 'u',
+  ctrlKey: true,
+  metaKey: false,
+  altKey: false,
+  shiftKey: true,
+};
 
 export const DEFAULT_SETTINGS: PrivacySettings = {
   privacyEnabled: false,
@@ -61,6 +108,12 @@ export const DEFAULT_SETTINGS: PrivacySettings = {
   hideLastSeen: true,
   blurCaptions: true,
   blurComments: true,
+  privacyProfile: 'custom',
+  panicLockEnabled: true,
+  panicLocked: false,
+  lockShortcut: { ...DEFAULT_LOCK_SHORTCUT },
+  unlockShortcut: { ...DEFAULT_UNLOCK_SHORTCUT },
+  sameShortcutToggle: false,
   revealMode: 'hover',
   temporaryRevealDurationMs: 3000,
   blurIntensity: 8,
@@ -76,6 +129,8 @@ export type ExtensionMessage =
   | { type: 'SET_PRIVACY_ENABLED'; enabled: boolean }
   | { type: 'SETTINGS_UPDATED'; settings: PrivacySettings }
   | { type: 'QUICK_LOCK' }
+  | { type: 'PANIC_LOCK' }
+  | { type: 'PANIC_UNLOCK' }
   | { type: 'OPEN_ONBOARDING' }
   | { type: 'PING' }
   | { type: 'PONG' };

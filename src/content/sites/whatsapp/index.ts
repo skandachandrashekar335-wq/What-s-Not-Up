@@ -20,7 +20,7 @@ import { SiteAdapter } from '../types';
 import { SELECTORS } from '../../selectors';
 import { PICKER_ZONES } from './dom';
 import { resolveWhatsAppProfilePhotos } from './avatar-resolver';
-import { resolveWhatsAppGifsAndStickers } from './media-classifier';
+import { resolveWhatsAppGifsAndStickers, resolveWhatsAppVideos } from './media-classifier';
 
 /**
  * Regions that can hold GIF/sticker-shaped UI but never hold message media.
@@ -113,6 +113,7 @@ export const whatsappAdapter: SiteAdapter = {
       setting: 'blurVideos',
       selectors: SELECTORS.mediaVideo,
       match: 'union', // additive: video thumb / media video / provider video
+      resolve: resolveWhatsAppVideos,
     },
     {
       type: 'gif-sticker',
