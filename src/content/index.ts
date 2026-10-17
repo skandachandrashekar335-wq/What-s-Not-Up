@@ -21,6 +21,15 @@ import { applyProtections, removeProtections, processNewNodes } from './dom-proc
 import { showOverlay, hideOverlay, isOverlayVisible } from './overlay';
 import { detectAdapter } from './sites/detect';
 import { SiteAdapter } from './sites/types';
+import {
+  applyPanicLock,
+  releasePanicLock,
+  togglePanicLock,
+  stampNewLockedElements,
+  matchesShortcut,
+  isPanicLocked,
+  cleanupPanicLock,
+} from './panic-lock';
 
 let adapter: SiteAdapter | null = null;
 let currentSettings: PrivacySettings | null = null;
@@ -223,6 +232,8 @@ export function processAddedNodes(added: Node[]): void {
   } as NodeList;
 
   processNewNodes(nodeList, currentSettings, adapter);
+  // If locked, stamp any newly protected elements so they cannot be revealed.
+  stampNewLockedElements();
 }
 
 const scheduleFrame: (cb: () => void) => void =
@@ -237,6 +248,9 @@ function attachKeyboardShortcut(): void {
   keyListenerAttached = true;
 
   document.addEventListener('keydown', (e: KeyboardEvent) => {
+    const s = currentSettings;
+
+    // ── Legacy overlay shortcut: Ctrl/Cmd+Shift+P ────────────────────────────
     const meta = e.ctrlKey || e.metaKey;
     if (meta && e.shiftKey && e.key.toLowerCase() === 'p') {
       e.preventDefault();
@@ -244,6 +258,27 @@ function attachKeyboardShortcut(): void {
         hideOverlay();
       } else {
         showOverlay();
+      }
+      return;
+    }
+
+    // ── Panic Lock shortcuts ─────────────────────────────────────────────────
+    if (!s?.panicLockEnabled) return;
+
+    if (s.sameShortcutToggle) {
+      // Toggle mode: one shortcut does both lock and unlock.
+      if (matchesShortcut(e, s.lockShortcut)) {
+        e.preventDefault();
+        togglePanicLock(s);
+      }
+    } else {
+      // Separate mode.
+      if (!isPanicLocked() && matchesShortcut(e, s.lockShortcut)) {
+        e.preventDefault();
+        applyPanicLock(s);
+      } else if (isPanicLocked() && matchesShortcut(e, s.unlockShortcut)) {
+        e.preventDefault();
+        releasePanicLock();
       }
     }
   });
@@ -296,6 +331,16 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, _sender, sendRe
     case 'QUICK_LOCK':
       showOverlay();
       break;
+
+    case 'PANIC_LOCK':
+      if (currentSettings?.panicLockEnabled) {
+        applyPanicLock(currentSettings);
+      }
+      break;
+
+    case 'PANIC_UNLOCK':
+      releasePanicLock();
+      break;
   }
 
   return true; // keep message channel open for async responses
@@ -307,6 +352,7 @@ window.addEventListener('unload', () => {
   observer?.disconnect();
   clearAllTimers();
   removeStyles();
+  cleanupPanicLock();
 });
 
 // ─── Boot ────────────────────────────────────────────────────────────────────

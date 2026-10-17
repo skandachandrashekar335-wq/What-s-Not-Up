@@ -19,6 +19,21 @@
  * panel / header) and never inside pickers or dialogs, so WhatsApp's GIF and
  * sticker pickers, reaction picker and emoji panel stay visible.
  *
+ * ─── Video thumbnail coverage ───────────────────────────────────────────────
+ * WhatsApp renders video thumbnails as an <img> (the poster frame) inside a
+ * video container, not as a <video> element with a poster attribute. The
+ * stable testids ([data-testid="video-thumb"], [data-testid="media-video"])
+ * cover the container, but the <img> inside it is what the user actually sees.
+ *
+ * When those testids change or are absent, resolveWhatsAppVideos() provides a
+ * structural fallback: any <img> or <video> inside a video-shaped container
+ * (token VIDEO_TOKENS on the element or a close ancestor) inside a message
+ * bubble is classified as video. This mirrors the GIF/sticker resolver.
+ *
+ * Forwarded messages wrap their media in an additional container that still
+ * sits inside [data-testid="msg-container"], so inConversation() returns true
+ * and the same pipeline covers them without special-casing.
+ *
  * ─── Confidence ─────────────────────────────────────────────────────────────
  * Every rule below is positive evidence — an identifying token on the element
  * or its wrapper, a marker attribute, or a shape that WhatsApp only uses for
@@ -33,6 +48,7 @@ import {
   PICKER_ZONES,
   STICKER_TOKENS,
   TEXT_ZONES,
+  VIDEO_TOKENS,
   hasAvatarHint,
   hasTokenNear,
   inConversation,
@@ -114,5 +130,54 @@ export function resolveWhatsAppGifsAndStickers(root: Document | Element): Elemen
     const kind = classifyWhatsAppMedia(el);
     if (kind === 'gif' || kind === 'sticker') out.add(el);
   }
+  return Array.from(out);
+}
+
+/**
+ * Structural video detection. Runs in addition to the selector table to cover:
+ *
+ *  - Video thumbnails rendered as an <img> (poster frame) inside a container
+ *    that has a video-related token but no stable testid yet registered in
+ *    SELECTORS.mediaVideo. This is the primary vector for the reported privacy
+ *    failure: the <img> preview frame is visible even when blurVideos is on,
+ *    because the selector table only matched the container, not its inner img.
+ *
+ *  - Forwarded video: WhatsApp wraps forwarded media in an extra container
+ *    that still lives inside [data-testid="msg-container"], so inConversation()
+ *    holds and the same pipeline handles them without special-casing.
+ *
+ *  - Play-button overlays: the play-button <div> or <svg> that sits on top of
+ *    the poster frame is claimed as part of the same video group because it
+ *    shares the video container. resolveOwner() then collapses them to one
+ *    blur owner, so the play button never reveals the poster frame.
+ *
+ * The element returned is the visible media element (img or video), not just
+ * the outer container, so the blur always lands on what the eye can see.
+ */
+export function resolveWhatsAppVideos(root: Document | Element): Element[] {
+  const out = new Set<Element>();
+
+  // Pass 1: explicit video elements classified as VIDEO by the classifier.
+  for (const el of queryInScope('video', root)) {
+    if (classifyWhatsAppMedia(el) === 'video') out.add(el);
+  }
+
+  // Pass 2: <img> elements that are inside a video-shaped container but are
+  // NOT covered by the stable selector table (their container lacks a known
+  // testid). This handles the poster-frame-as-img pattern.
+  for (const el of queryInScope('img', root)) {
+    // Must be inside a message (not in the chat list or pickers).
+    if (!isMessageContent(el)) continue;
+    if (isInsideAny(el, PICKER_ZONES)) continue;
+    if (hasAvatarHint(el)) continue;
+    if (isEmojiLike(el)) continue;
+
+    // The image must sit inside a container whose testid/class/aria/title
+    // contains a video-indicating token.
+    if (hasTokenNear(el, VIDEO_TOKENS, 4)) {
+      out.add(el);
+    }
+  }
+
   return Array.from(out);
 }

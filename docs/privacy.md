@@ -86,7 +86,13 @@ The stored object looks like:
     "privacyEnabled": false,
     "blurMessages": true,
     "blurIntensity": 8,
-    "revealMode": "hover"
+    "revealMode": "hover",
+    "panicLockEnabled": true,
+    "panicLocked": false,
+    "lockShortcut": { "key": "l", "ctrlKey": true, "shiftKey": true },
+    "unlockShortcut": { "key": "u", "ctrlKey": true, "shiftKey": true },
+    "sameShortcutToggle": false,
+    "privacyProfile": "custom"
   }
 }
 ```
@@ -120,6 +126,8 @@ Notably absent:
 - It does not access anything on WhatsApp's or Instagram's servers
 - It does not operate outside of `web.whatsapp.com` and `www.instagram.com`
 - It cannot take screenshots of your screen (OS-level capability this extension does not have)
+- Panic Lock does not encrypt content — it is a visual blur override, not a security boundary
+- Panic Lock cannot prevent screenshots, screen recording, or inspection via developer tools
 
 ---
 
@@ -133,6 +141,19 @@ When privacy mode is enabled, the extension:
 4. Re-applies protections automatically when you change settings — no page reload
 
 When privacy mode is disabled, all CSS attributes are removed and all event listeners are cleaned up. The page returns to its normal state.
+
+### Panic Lock
+
+Panic Lock is an additional layer on top of privacy mode. When activated (via keyboard shortcut or the popup button), it:
+
+1. Injects a CSS override (`[data-wnu-lock]`) that forces blur on all protected elements with `!important`, overriding any reveal state.
+2. Stamps the lock attribute on every currently protected element and on any element that becomes protected while the lock is active.
+3. Persists the `panicLocked` boolean flag to `chrome.storage.local` so the popup reflects the real state.
+4. Blocks all reveal attempts — hover, click, and temporary reveal are overridden while locked.
+
+No message content is stored or transmitted during lock/unlock. Only the boolean `panicLocked` flag is persisted.
+
+Panic Lock is a **visual privacy convenience**, not encryption. It does not prevent screenshots, screen recording, or inspection via browser developer tools.
 
 ---
 
