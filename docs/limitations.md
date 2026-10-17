@@ -45,7 +45,7 @@ When a layer cannot produce enough evidence (no `src`, no layout, an unknown str
 
 ## Verification status (v1.0.0)
 
-**Verified automatically** — `npm run typecheck`, `npm run lint`, `npm test` (259 tests), `npm run build` and `npm run validate:extension` all pass. The suites exercise the layered profile-photo resolver, the media classifier, ownership/reveal grouping, live settings propagation and the real MutationObserver against fixtures modelled on the current WhatsApp and Instagram markup.
+**Verified automatically** — `npm run typecheck`, `npm run lint`, `npm test` (306 tests), `npm run build` and `npm run validate:extension` all pass. The suites exercise the layered profile-photo resolver, the media classifier, the video structural resolver, ownership/reveal grouping, live settings propagation, Panic Lock state transitions and shortcut validation, and the real MutationObserver against fixtures modelled on the current WhatsApp and Instagram markup.
 
 **Manually verified in a real session** — the final release was tested in **Microsoft Edge against a logged-in WhatsApp Web session**, confirming profile photos, GIFs, stickers, messages, contact/group names, chat-list previews, images and videos, dynamically arriving content, live toggles applied without a reload, and reveal behaviour.
 
@@ -117,3 +117,39 @@ The content script is injected after the page's initial load. If the site has al
 ## `chrome.storage.local` quota
 
 Chrome's `chrome.storage.local` has a 10MB quota. Settings are a small JSON object (well under 1KB). This is not a practical concern, but the error is handled gracefully: if a write fails, the extension logs a warning and the settings change is not persisted.
+
+---
+
+## Media protection coverage
+
+The extension protects the following media categories on WhatsApp Web:
+
+| Category | How it is detected |
+|---|---|
+| Images | Selector table (`[data-testid*="image-thumb"]`, `[data-testid*="media-image"]`) plus the media classifier's structural fallback |
+| Video thumbnails | Selector table (`[data-testid="video-thumb"]`, `[data-testid="media-video"]`) plus `resolveWhatsAppVideos()`, a structural resolver that catches `<img>` poster frames inside video-shaped containers even when testids have changed |
+| GIFs | Looped, control-less `<video>` elements and elements with GIF/animated tokens in their attributes or CDN URL |
+| Stickers | Canvas-rendered stickers inside message bubbles, and square `<img>` elements inside messages that are not in a media cell |
+| Document previews | `[data-testid*="document-thumb"]` and `[data-testid*="media-document"]` selectors |
+| Link previews | `[data-testid*="link-preview"]` selectors |
+| Forwarded media | Covered by the same pipeline — forwarded messages wrap their media in an extra container that still lives inside `[data-testid="msg-container"]` |
+
+**Detection depends on the current website DOM.** The structural resolvers (video, GIF/sticker, avatar) survive testid renames because they use attribute hints and structural context rather than relying on any single selector. However, if WhatsApp fundamentally restructures how media is rendered, an adapter update may be required.
+
+---
+
+## Panic Lock limitations
+
+Panic Lock is a **visual privacy convenience**, not encryption:
+
+- It does not prevent screenshots or screen recording.
+- It does not protect against someone with physical access to your unlocked device.
+- It does not stop browser developer tools from inspecting the page.
+- It does not protect against other browser extensions.
+
+Keyboard shortcuts are handled by an in-page listener (the MV3 `commands` API cannot be dynamically reconfigured from settings). This means:
+
+- Shortcuts only fire when the WhatsApp Web or Instagram tab is focused and visible.
+- They are not global OS-level shortcuts and do not work across other applications.
+- Combinations reserved by the browser (e.g. `Ctrl+T`, `Ctrl+W`, `Ctrl+F`) are rejected during configuration.
+- The popup always provides an **Unlock** button as a guaranteed recovery path, independent of keyboard shortcuts.

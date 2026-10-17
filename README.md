@@ -3,7 +3,7 @@
 **A privacy layer for WhatsApp Web and Instagram.**
 
 ![version](https://img.shields.io/badge/version-1.0.0-0F1117)
-![tests](https://img.shields.io/badge/tests-259%20passing-4c1)
+![tests](https://img.shields.io/badge/tests-306%20passing-4c1)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-0F1117)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
@@ -154,10 +154,74 @@ The extension starts protecting supported content according to the default priva
 | **Blur intensity** | A slider that controls how strong the blur is (from light to heavy). |
 | **Quick Lock** | Covers the whole screen with a privacy overlay, instantly. |
 | **Max Privacy** | Turns every protection on at once. |
-| **Emergency shortcut** | `Ctrl+Shift+P` (`Cmd+Shift+P` on Mac) toggles privacy on and off. |
+| **Panic Lock** | Force-protects all enabled categories instantly. Unlock from the popup or with a shortcut. |
+| **Privacy Profiles** | Presets (Normal, Balanced, Maximum) that set multiple toggles at once. |
+| **Emergency shortcut** | `Ctrl+Shift+P` (`Cmd+Shift+P` on Mac) toggles the privacy overlay. |
 | **Blur on focus loss** | Optionally re-blurs when you switch to another window. |
 
 Every control is independent. Turning off messages does not turn off profile photos, and so on.
+
+---
+
+## Panic Lock
+
+Panic Lock is an instant content-protection feature. When activated, it force-protects every enabled privacy category at once and blocks all reveal attempts — hover, click, and temporary reveal are overridden while the lock is active.
+
+### Default shortcuts
+
+| Action | Default shortcut |
+|---|---|
+| Lock | `Ctrl+Shift+L` (or `Cmd+Shift+L` on macOS) |
+| Unlock | `Ctrl+Shift+U` (or `Cmd+Shift+U` on macOS) |
+
+You can change these in **Settings → Panic Lock**. Click the shortcut box, press your desired key combination, and it is recorded.
+
+### Same-shortcut toggle mode
+
+In **Settings → Panic Lock**, enable **"Use the same shortcut to lock and unlock"**. The lock shortcut then alternates between locking and unlocking on each press. A separate unlock shortcut is not needed in this mode.
+
+### Separate lock and unlock shortcuts
+
+When toggle mode is off, the lock and unlock shortcuts are independent. You must use the unlock shortcut (or the popup unlock button) to leave the locked state.
+
+### Recovery
+
+If your keyboard shortcut conflicts with the browser or does not fire, you are never locked out permanently:
+
+- The popup always shows a red **🔐 Panic Lock is active** banner with a visible **Unlock** button when the lock is on.
+- **Settings → Panic Lock** has a **Restore default shortcuts** button.
+- The shortcut only works while the WhatsApp Web or Instagram tab is focused — it is not a global OS-level shortcut.
+
+### Browser limitations
+
+- Keyboard shortcuts are handled by an in-page listener because Manifest V3's `commands` API cannot be dynamically reconfigured from settings. This means shortcuts only fire when the supported site tab is focused and visible.
+- Combinations reserved by the browser (e.g. `Ctrl+T`, `Ctrl+W`, `Ctrl+F`) are rejected during configuration with a warning message.
+- The extension cannot register global OS-level shortcuts that work across all applications.
+
+### What Panic Lock is not
+
+Panic Lock is a **visual privacy convenience**, not encryption. It does not:
+- Prevent screenshots or screen recording
+- Protect against someone with physical access to your unlocked device
+- Stop browser developer tools from inspecting the page
+- Protect against other browser extensions
+
+---
+
+## Privacy Profiles
+
+Privacy Profiles are presets that configure multiple protection toggles at once. After selecting a preset, you can still fine-tune individual toggles — doing so switches the profile to **Custom**.
+
+| Profile | What it protects |
+|---|---|
+| **Normal** | Message text, contact/group names, profile photos, chat list previews. Media and status indicators remain visible. |
+| **Balanced** | Messages, names, profile photos, images, videos, link previews, chat list previews, chat header, online status, captions. A practical default for most situations. |
+| **Maximum** | The broadest set of supported visual categories: everything in Balanced plus GIFs/stickers, document previews, typing indicator, and comments. |
+| **Custom** | Shown when you manually adjust any toggle after selecting a preset. Your individual settings are preserved. |
+
+Find these in **Settings → Privacy Profiles** on the options page. The popup shows the active profile name below the Privacy Mode status.
+
+**Maximum does not protect unsupported elements.** Instagram direct messages, the stories viewer, and the reels viewer are not implemented — selecting Maximum does not claim to protect them.
 
 ---
 
@@ -258,20 +322,24 @@ Every toggle is independent. Turning one category off never disables another, an
 | Hover reveal | Move the pointer over blurred content to see it; leaving re-blurs it |
 | Click reveal | Click to reveal, click again to hide |
 | Temporary reveal | Reveals for a configurable duration, then re-blurs automatically |
-| Emergency shortcut | `Ctrl+Shift+P` (`Cmd+Shift+P` on macOS) |
+| Emergency shortcut | `Ctrl+Shift+P` (`Cmd+Shift+P` on macOS) toggles the full-screen overlay |
 | Quick Lock | One-click full-screen privacy overlay |
 | Max Privacy | Enables every protection at once |
+| Panic Lock | `Ctrl+Shift+L` to force-protect all enabled categories; `Ctrl+Shift+U` to unlock (configurable) |
+| Privacy Profiles | Normal / Balanced / Maximum presets — apply multiple toggles in one click |
 | Focus-loss privacy | Optional blur when the window loses focus |
 | Emergency overlay | Full-screen, modal, dismissible by click, `Esc`, or the shortcut |
 
 Reveal operates on a **logical group**: hovering a message reveals its text, media, reply preview and reactions together, and re-blurs them together.
 
+**Panic Lock overrides reveal.** While the lock is active, hovering or clicking protected content does not reveal it. The lock is released only by the unlock shortcut or the popup Unlock button.
+
 ### Product
 
 | Feature | Detail |
 |---|---|
-| Popup controls | Primary toggles, reveal mode, blur intensity, Quick Lock, Max Privacy |
-| Options page | Full settings across seven sections |
+| Popup controls | Primary toggles, reveal mode, blur intensity, Quick Lock, Panic Lock, Max Privacy |
+| Options page | Full settings across eight sections (Privacy, Privacy Profiles, Content Protection, Panic Lock, Reveal Behaviour, Focus/Window, Appearance, Advanced) |
 | Onboarding | First-run explanation of what the extension does and does not do |
 | Themes | Light / dark / system |
 | Local persistence | Settings stored in `chrome.storage.local` only |
@@ -325,7 +393,8 @@ Reveal Controller
 | `src/content/sites/whatsapp/index.ts` | Target wiring: match modes, resolvers, exclusions |
 | `src/content/sites/whatsapp/dom.ts` | Read-only DOM signal helpers and zone/token constants |
 | `src/content/sites/whatsapp/avatar-resolver.ts` | Layered profile-photo detection |
-| `src/content/sites/whatsapp/media-classifier.ts` | image / video / GIF / sticker classification |
+| `src/content/sites/whatsapp/media-classifier.ts` | image / video / GIF / sticker classification, plus `resolveWhatsAppVideos` structural resolver for poster-frame `<img>` elements inside video containers |
+| `src/content/panic-lock.ts` | Panic Lock engine: lock/unlock state, CSS injection, shortcut matching and validation |
 | `src/content/selectors.ts` | Stable exact selector paths |
 
 Detection relies on **structural context**, **conservative heuristics**, and **hard exclusions** — the GIF picker, sticker picker, emoji picker, dialogs and the chat list are ruled out before any positive signal is considered.
@@ -388,7 +457,7 @@ Runtime dependencies: `react`, `react-dom`. Nothing else.
 
 **Local-first architecture.** There is no backend to trust. Privacy transformations are applied to the local DOM only.
 
-**Automated regression testing.** 259 tests across 14 files cover the engine, both site adapters, ownership, mutation handling, settings propagation, reveal behaviour and the overlay — with zero tests deleted or weakened.
+**Automated regression testing.** 306 tests across 16 files cover the engine, both site adapters, ownership, mutation handling, settings propagation, reveal behaviour, the overlay, Panic Lock state transitions and shortcut validation, and the video resolver — with zero tests deleted or weakened.
 
 ---
 
@@ -436,7 +505,7 @@ The v1.0.0 release was **manually tested in Microsoft Edge with a real, logged-i
 - Toggles apply live without a page reload
 - Reveal behaviour works
 
-Automated checks also pass: 259/259 tests, TypeScript, ESLint, production build, extension validation.
+Automated checks also pass: 306/306 tests, TypeScript, ESLint, production build, extension validation.
 
 Notes on individual browsers: [`docs/browser-support.md`](docs/browser-support.md)
 
@@ -542,10 +611,11 @@ More detail: [`docs/development.md`](docs/development.md)
 
 ## Testing
 
-**259 tests across 14 test files.** Zero tests deleted or weakened.
+**306 tests across 16 test files.** Zero tests deleted or weakened.
 
 | Area | File | Tests |
 |---|---|---:|
+| Panic Lock engine | `panic-lock.test.ts` | 35 |
 | WhatsApp media classification | `whatsapp-media.test.ts` | 43 |
 | WhatsApp avatar detection | `whatsapp-photos.test.ts` | 33 |
 | Privacy engine | `privacy-engine.test.ts` | 23 |
@@ -557,6 +627,7 @@ More detail: [`docs/development.md`](docs/development.md)
 | Settings propagation | `settings-sync.test.ts` | 16 |
 | Mutation handling | `mutation-observer.test.ts` | 14 |
 | Logical reveal groups | `logical-groups.test.ts` | 12 |
+| Video resolver | `video-resolver.test.ts` | 12 |
 | Storage | `storage.test.ts` | 9 |
 | Types and defaults | `types.test.ts` | 9 |
 | Selector helpers | `selectors.test.ts` | 8 |
@@ -591,6 +662,7 @@ Tests run in jsdom against fixtures modelled on the current site markup. They do
 - Firefox has not been tested.
 - The extension cannot prevent OS-level screenshots or screen recording.
 - GIFs continue to load behind the blur; CSS cannot pause them.
+- Media protection depends on the current WhatsApp Web DOM. Structural resolvers survive testid renames, but a fundamental markup restructure may require an adapter update.
 
 Full list: [`docs/limitations.md`](docs/limitations.md)
 
